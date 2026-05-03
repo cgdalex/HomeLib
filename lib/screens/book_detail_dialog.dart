@@ -10,7 +10,8 @@ import '../providers/library_provider.dart';
 
 // This popup appears when the user clicks a book cover on the HomeScreen.
 // It shows a larger cover, book title, author, extra book details,
-// and the Google Books description.
+// the Google Books description, and buttons to add the book to either
+// the main library or the wish list.
 class BookDetailDialog extends StatefulWidget {
   final Book book;
 
@@ -129,7 +130,7 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
 
   // This adds the selected book to both providers:
   // 1. BookCollectionProvider controls the plus/checkmark state on HomeScreen.
-  // 2. LibraryProvider controls what appears in the LibraryScreen.
+  // 2. LibraryProvider controls what appears in the main LibraryScreen.
   Future<void> _addBookToLibrary(BuildContext context) async {
     final alreadyAdded =
         context.read<BookCollectionProvider>().isBookAdded(widget.book);
@@ -154,12 +155,57 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
     );
   }
 
+  // This adds the selected book to the wish list.
+  // It uses the LibraryProvider wishlist system that already exists
+  // in the merged project.
+  Future<void> _addBookToWishList(BuildContext context) async {
+    final libraryProvider = context.read<LibraryProvider>();
+
+    final alreadyInWishList = libraryProvider.wishlist.any(
+      (savedBook) => savedBook.id == widget.book.id,
+    );
+
+    final alreadyInLibrary = libraryProvider.savedBooks.any(
+      (savedBook) => savedBook.id == widget.book.id,
+    );
+
+    if (!alreadyInWishList && !alreadyInLibrary) {
+      await libraryProvider.addToWishlist(
+        widget.book.copyWith(status: 'Wish List'),
+      );
+    }
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          alreadyInWishList
+              ? '${widget.book.title} is already in your wish list'
+              : alreadyInLibrary
+                  ? '${widget.book.title} is already in your library'
+                  : 'Added ${widget.book.title} to Wish List!',
+        ),
+        backgroundColor: Colors.blue,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Watches the provider so the button updates from "Add" to "Added"
-    // if the book is already in the user's library.
+    // Watches BookCollectionProvider so the main add button updates
+    // from "Add to Library" to "Added to Library".
     final bool isAdded =
         context.watch<BookCollectionProvider>().isBookAdded(widget.book);
+
+    // Watches LibraryProvider so the wishlist button updates
+    // from "Add to Wish List" to "In Wish List".
+    final libraryProvider = context.watch<LibraryProvider>();
+
+    final bool isInWishList = libraryProvider.wishlist.any(
+      (savedBook) => savedBook.id == widget.book.id,
+    );
 
     return Dialog(
       backgroundColor: const Color(0xFF151515),
@@ -266,32 +312,66 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
 
                               const SizedBox(height: 24),
 
-                              // Main action button.
-                              // The extra Close button was removed because the popup
-                              // already has an X in the top-right corner.
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: isAdded
-                                      ? Colors.green
-                                      : Colors.amber.shade700,
-                                  foregroundColor: Colors.black,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                    vertical: 16,
+                              // Action buttons.
+                              // The normal library button and wish list button
+                              // are placed next to each other.
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 12,
+                                children: [
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: isAdded
+                                          ? Colors.green
+                                          : Colors.amber.shade700,
+                                      foregroundColor: Colors.black,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 16,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onPressed: () => _addBookToLibrary(context),
+                                    icon: Icon(
+                                      isAdded ? Icons.check : Icons.add,
+                                    ),
+                                    label: Text(
+                                      isAdded
+                                          ? 'Added to Library'
+                                          : 'Add to Library',
+                                    ),
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
+
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: isInWishList
+                                          ? Colors.lightBlue.shade800
+                                          : Colors.blue.shade600,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 16,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onPressed: () =>
+                                        _addBookToWishList(context),
+                                    icon: Icon(
+                                      isInWishList
+                                          ? Icons.bookmark
+                                          : Icons.bookmark_add_outlined,
+                                    ),
+                                    label: Text(
+                                      isInWishList
+                                          ? 'In Wish List'
+                                          : 'Add to Wish List',
+                                    ),
                                   ),
-                                ),
-                                onPressed: () => _addBookToLibrary(context),
-                                icon: Icon(
-                                  isAdded ? Icons.check : Icons.add,
-                                ),
-                                label: Text(
-                                  isAdded
-                                      ? 'Added to Library'
-                                      : 'Add to Library',
-                                ),
+                                ],
                               ),
 
                               const SizedBox(height: 30),
@@ -336,7 +416,7 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
             ),
 
             // X button in the top-right corner.
-            // This is now the only close button in the popup.
+            // This is the only close button in the popup.
             Positioned(
               top: 12,
               right: 12,
