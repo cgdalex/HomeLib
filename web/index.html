@@ -18,21 +18,130 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="HomeLIB book tracking app.">
+
+  <!-- Makes the browser loading background dark before Flutter starts. -->
+  <meta name="theme-color" content="#101010">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="home_lib">
+  <meta name="apple-mobile-web-app-title" content="HomeLIB">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>home_lib</title>
+  <title>HomeLIB</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Dark loading screen styling -->
+  <style>
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #101010;
+    }
+
+    body {
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    #loading {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at center, #181818 0%, #101010 70%);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .loading-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .loading-logo-img {
+      width: 280px;
+      max-width: 70vw;
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.35));
+    }
+
+    .loading-subtitle {
+      color: #bdbdbd;
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+    }
+
+    .loading-spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid #2a2a2a;
+      border-top-color: #f4a261;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Optional fade out effect when Flutter loads */
+    .fade-out {
+      opacity: 0;
+      transition: opacity 0.35s ease;
+      pointer-events: none;
+    }
+  </style>
 </head>
 <body>
+  <!-- This appears instantly while the Flutter app is loading -->
+  <div id="loading">
+    <div class="loading-card">
+      <!-- Put your generated logo file in web/homelib_logo.png -->
+      <img
+        src="homelib_logo.png"
+        alt="HomeLIB logo"
+        class="loading-logo-img"
+      />
+
+      <div class="loading-spinner"></div>
+
+      <div class="loading-subtitle">Loading your library...</div>
+    </div>
+  </div>
+
+  <script>
+    // Removes the loading screen once Flutter draws its first frame.
+    window.addEventListener('flutter-first-frame', function () {
+      const loading = document.getElementById('loading');
+
+      if (loading) {
+        loading.classList.add('fade-out');
+
+        setTimeout(function () {
+          loading.remove();
+        }, 350);
+      }
+    });
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
