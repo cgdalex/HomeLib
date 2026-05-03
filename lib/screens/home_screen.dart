@@ -187,10 +187,83 @@ class _HomeScreenState extends State<HomeScreen> {
                 // Gets the current book from the list based on its index.
                 final book = _books[index];
 
-                // Displays each book as a simple row with title and author.
-                return ListTile(
-                  title: Text(book.title),
-                  subtitle: Text(book.authors),
+                // Displays each book result inside a Card.
+                // Cards make the results look more like separate book entries
+                // instead of plain text rows.
+                return Card(
+                  // Adds space around each card so the results do not touch each other.
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+
+                  // ListTile gives us a nice row layout:
+                  // leading = left side cover image
+                  // title = main book title
+                  // subtitle = author name
+                  // trailing = right side add button
+                  child: ListTile(
+                    // Shows the book cover on the left side.
+                    // SizedBox forces every cover area to stay the same size.
+                    leading: SizedBox(
+                      width: 50,
+                      height: 70,
+
+                      // If the book has a cover URL, try to load the cover image.
+                      // If not, show a default book icon.
+                      child: book.thumbnailUrl.isNotEmpty
+                          ? Image.network(
+                              book.thumbnailUrl,
+
+                              // Makes the cover fill the 50 by 70 box without
+                              // stretching weirdly.
+                              fit: BoxFit.cover,
+
+                              // This tells Flutter web to use a regular browser
+                              // image element. This can help Google Books cover
+                              // images load correctly in Chrome.
+                              webHtmlElementStrategy:
+                                  WebHtmlElementStrategy.prefer,
+
+                              // If the image still fails, show a clean book icon
+                              // instead of the ugly red error box.
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(Icons.book, size: 40);
+                              },
+                            )
+                          : const Icon(Icons.book, size: 40),
+                    ),
+
+                    // Shows the book title.
+                    // maxLines keeps long titles from taking over the whole screen.
+                    title: Text(
+                      book.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    // Shows the author name underneath the title.
+                    // maxLines keeps long author lists from stretching the row.
+                    subtitle: Text(
+                      book.authors,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+
+                    // Shows a plus button on the right side.
+                    // Right now it just confirms that the book was selected.
+                    // Later, we will make this actually add the book to "My Library".
+                    trailing: IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${book.title} selected'),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 );
               },
             ),

@@ -16,9 +16,17 @@ class Book {
       title: volumeInfo['title'] ?? 'No Title',
       authors: (volumeInfo['authors'] as List<dynamic>?)?.join(', ') ??
           'Unknown Author',
-      thumbnailUrl: volumeInfo['imageLinks']?['thumbnail']
-              ?.replaceFirst('http', 'https') ??
-          '',
+
+      // Gets the best available cover image from the Google Books API.
+      // Some books have "thumbnail", some only have "smallThumbnail".
+      // We also force https and remove edge=curl because that part can cause
+      // image loading issues in Flutter web.
+      thumbnailUrl: (volumeInfo['imageLinks']?['thumbnail'] ??
+              volumeInfo['imageLinks']?['smallThumbnail'] ??
+              '')
+          .toString()
+          .replaceFirst('http://', 'https://')
+          .replaceAll('&edge=curl', ''),
     );
   }
 }
