@@ -105,18 +105,6 @@ We deployed the project with **GitHub Pages** and **GitHub Actions** so the app 
 - ChatGPT
 - Google Gemini
 
-## AI Disclosure
-
-We used AI tools during the project for debugging and code guidance since we were unfamiliar with Dart and Flutter
-
-Specifically, AI helped us:
-
-- Debug Flutter and Git issues
-- Teacher for how certain things work in dart
-- Generate suggestions for code organization in git
-
-We reviewed, edited, tested, and committed the code ourselves. AI was used as a support tool while we learned and built the project.
-
 ## Challenges We Ran Into
 
 A lot broke during the hackathon.
@@ -195,6 +183,18 @@ We believe the same organizational idea behind HomeLIB could help people track n
 ## Beginner Track Reflection
 
 This was our first hackathon, and HomeLIB represents what we learned in 24 hours.
+
+## AI Disclosure
+
+We used AI tools during the project for debugging and code guidance since we were unfamiliar with Dart and Flutter
+
+Specifically, AI helped us:
+
+- Debug Flutter and Git issues
+- Teacher for how certain things work in dart
+- Generate suggestions for code organization in git
+
+We reviewed, edited, tested, and committed the code ourselves. AI was used as a support tool while we learned and built the project.
 
 We ran into bugs, merge conflicts, deployment problems, API issues, and design challenges. But we kept going, learned quickly, and built something real.
 
