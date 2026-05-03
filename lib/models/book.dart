@@ -23,6 +23,8 @@ class Book {
 
   // Creates a Book object from the JSON data returned by Google Books.
   factory Book.fromJson(Map<String, dynamic> json) {
+    // Note: 'id' is at the top level of the API response, 
+    // while 'title' is inside 'volumeInfo'
     final volumeInfo = json['volumeInfo'] ?? {};
 
     return Book(
@@ -46,5 +48,18 @@ class Book {
           .replaceFirst('http://', 'https://')
           .replaceAll('&edge=curl', ''),
     );
+  }
+
+  // 2. The missing toJson method (Essential for Task #2)
+  // This turns your Book object back into a Map so SharedPreferences can save it
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'volumeInfo': {
+        'title': title,
+        'authors': authors.split(', '), // Turn string back into list
+        'imageLinks': {'thumbnail': thumbnailUrl},
+      }
+    };
   }
 }
