@@ -10,8 +10,13 @@ import '../models/book.dart';
 import '../services/book_api.dart';
 
 // Imports our separate provider for books added from the search screen.
-// This does not touch your buddy's library_provider.dart file.
+// This keeps your checkmark/save-between-refreshes system working.
 import '../providers/book_collection_provider.dart';
+
+// ADDED THIS:
+// Imports your buddy's LibraryProvider.
+// This lets the HomeScreen send books to the LibraryScreen.
+import '../providers/library_provider.dart';
 
 // HomeScreen is the main screen of the app.
 // It is StatefulWidget because the screen changes while the user uses it:
@@ -231,9 +236,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: InkWell(
                         customBorder: const CircleBorder(),
 
-                        // Saves the book into BookCollectionProvider.
-                        // BookCollectionProvider can save the book between refreshes
-                        // using shared_preferences.
+                        // Saves the book into both providers:
+                        // 1. BookCollectionProvider keeps your checkmark behavior working.
+                        // 2. LibraryProvider sends the book to your buddy's LibraryScreen.
                         onTap: () async {
                           // Check if the book was already added BEFORE trying to add it.
                           final alreadyAdded = context
@@ -242,7 +247,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
                           // Add the book only if it is not already in the collection.
                           if (!alreadyAdded) {
-                            await context.read<BookCollectionProvider>().addBook(book);
+                            // This keeps your current add/checkmark system working.
+                            await context
+                                .read<BookCollectionProvider>()
+                                .addBook(book);
+
+                            // ADDED THIS FROM YOUR BUDDY'S CHANGE:
+                            // This sends the same book to LibraryProvider
+                            // so your buddy's LibraryScreen can display it.
+                            await context.read<LibraryProvider>().addBook(book);
                           }
 
                           // Force the card to rebuild so the plus icon updates to a checkmark.
@@ -255,8 +268,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               content: Text(
                                 alreadyAdded
                                     ? '${book.title} is already added'
-                                    : '${book.title} added',
+                                    : 'Added ${book.title} to Library!',
                               ),
+                              backgroundColor: Colors.green,
+                              duration: const Duration(seconds: 2),
                             ),
                           );
                         },
