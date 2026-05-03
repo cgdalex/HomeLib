@@ -4,6 +4,16 @@ HomeLIB is a simple digital home library web app built during BeaverHacks 2026. 
 
 We built HomeLIB for the **Beginner Track** as our first hackathon project.
 
+## Inspiration
+
+HomeLIB was inspired by a real request from one of our team member’s family members, who wanted a simple way to keep track of the books they had read.
+
+When we started looking at existing book-tracking apps, we noticed that many of them were built around social media features. They focused on public reviews, friends, posts, reading challenges, advertisements, and recommendations. While those features can be useful for some people, they can also make the app feel overwhelming for users who simply want to remember what they read.
+
+That stood out to us because not every reader wants another social platform. Some users, especially older readers or people who are less interested in social media, just want a private and simple way to organize their books, notes, ratings, and wish list.
+
+That inspired us to build HomeLIB as a personal digital librarian: a clean web app focused on helping users remember what they read, what they thought about it, and what they want to read next.
+
 ## The Problem
 
 A lot of people enjoy reading but struggle to keep track of what they have read, what they own, what they want to read next, and what they thought about each book.
