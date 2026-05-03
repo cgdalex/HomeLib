@@ -36,6 +36,10 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
                 const SizedBox(height: 18),
                 if (_isLoading) _buildLoadingCard(),
                 if (_errorMessage != null) _buildErrorCard(_errorMessage!),
+                if (!_isLoading &&
+                    _errorMessage == null &&
+                    _recommendations.isEmpty)
+                  _buildNoGoodMatchesCard(),
                 if (!_isLoading && _recommendations.isNotEmpty)
                   ..._recommendations.map((recommendation) {
                     return _buildRecommendationCard(recommendation);
@@ -208,6 +212,36 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
             style: TextStyle(
               color: Colors.grey.shade300,
               fontSize: 15,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoGoodMatchesCard() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF181818),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF2A2A2A)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.search_off,
+            color: Colors.amber.shade700,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'No strong matches found. Try adding more books or notes to your library.',
+              style: TextStyle(
+                color: Colors.grey.shade300,
+                fontSize: 14,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -446,8 +480,8 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
             },
           ],
           'generationConfig': {
-            'temperature': 0.6,
-            'topP': 0.85,
+            'temperature': 0.35,
+            'topP': 0.8,
             'maxOutputTokens': 1800,
           },
         }),
@@ -463,15 +497,15 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
       final geminiText = _extractGeminiText(decoded);
 
       var parsedRecommendations = _parseRecommendations(geminiText);
+      parsedRecommendations = _filterAlreadySavedBooks(
+        parsedRecommendations,
+        books,
+      );
+      parsedRecommendations = _sortByMatchScore(parsedRecommendations);
 
-      if (parsedRecommendations.length < 5) {
-        parsedRecommendations = _fillMissingRecommendations(
-          parsedRecommendations,
-          books,
-        );
-      }
-
-      parsedRecommendations = await _addCoverImages(parsedRecommendations);
+      parsedRecommendations = await _addCoverImages(
+        parsedRecommendations.take(5).toList(),
+      );
 
       if (!mounted) return;
 
@@ -511,55 +545,71 @@ class _RecommendationsScreenState extends State<RecommendationsScreen> {
     return '''
 You are the recommendation engine for HomeLIB, a personal book tracking app.
 
-Recommend exactly 5 real books based on this user's library.
+Your job is to recommend UP TO 5 real books that strongly match this user's library.
 
 User library:
 $libraryText
 
-Use this exact format. Repeat the full block 5 times.
+Before recommending anything, infer the user's likely audience, age range, genre, and reading level from the library.
+
+Important matching rules:
+- If the library is mostly children's books, recommend children's books only.
+- If the library is mostly picture books, recommend picture books only.
+- If the library is mostly middle grade books, recommend middle grade books only.
+- If the library is mostly young adult books, recommend young adult books only.
+- If the library is mostly adult books, recommend adult books only.
+- Do not recommend adult novels, dense classics, horror, political books, or advanced science fiction for a children's library.
+- Do not recommend books already in the user's library.
+- Only recommend books that are a strong fit.
+- If there are fewer than 5 strong matches, return fewer than 5.
+- Sort the recommendations from highest match score to lowest match score.
+
+Use this exact format. Include only the number of books that are strong matches.
 
 BOOK 1
 TITLE: Book title here
 AUTHOR: Author name here
-GENRE: Short genre here
+GENRE: Short genre and audience here
 WHY: One short reason under 35 words.
-MATCH: 92
+MATCH: 95
 
 BOOK 2
 TITLE: Book title here
 AUTHOR: Author name here
-GENRE: Short genre here
+GENRE: Short genre and audience here
 WHY: One short reason under 35 words.
-MATCH: 88
+MATCH: 91
 
 BOOK 3
 TITLE: Book title here
 AUTHOR: Author name here
-GENRE: Short genre here
+GENRE: Short genre and audience here
 WHY: One short reason under 35 words.
-MATCH: 85
+MATCH: 88
 
 BOOK 4
 TITLE: Book title here
 AUTHOR: Author name here
-GENRE: Short genre here
+GENRE: Short genre and audience here
 WHY: One short reason under 35 words.
-MATCH: 82
+MATCH: 84
 
 BOOK 5
 TITLE: Book title here
 AUTHOR: Author name here
-GENRE: Short genre here
+GENRE: Short genre and audience here
 WHY: One short reason under 35 words.
-MATCH: 79
+MATCH: 80
 
 Rules:
-- Return exactly 5 books.
-- Do not recommend books already in the user's library.
+- Return between 1 and 5 books.
+- Return 0 books only if there are no good matches.
 - Do not use markdown.
 - Do not include a greeting.
 - Do not include extra paragraphs.
 - Each book must have TITLE, AUTHOR, GENRE, WHY, and MATCH.
+- Match must be a number from 70 to 99.
+- Higher match scores should appear first.
 ''';
   }
 
@@ -642,7 +692,7 @@ Rules:
     final seenTitles = <String>{};
 
     for (final recommendation in recommendations) {
-      final key = recommendation.title.toLowerCase().trim();
+      final key = _normalizeTitle(recommendation.title);
 
       if (key.isNotEmpty && !seenTitles.contains(key)) {
         seenTitles.add(key);
@@ -650,7 +700,7 @@ Rules:
       }
     }
 
-    return uniqueRecommendations.take(5).toList();
+    return uniqueRecommendations;
   }
 
   _AiBookRecommendation? _parseSingleBlock(String block) {
@@ -667,7 +717,7 @@ Rules:
     final matchScore = int.tryParse(
           matchText.replaceAll(RegExp(r'[^0-9]'), ''),
         ) ??
-        85;
+        70;
 
     return _AiBookRecommendation(
       title: title,
@@ -695,36 +745,38 @@ Rules:
     return match.group(1)?.trim() ?? '';
   }
 
-  List<_AiBookRecommendation> _fillMissingRecommendations(
-    List<_AiBookRecommendation> currentRecommendations,
+  List<_AiBookRecommendation> _filterAlreadySavedBooks(
+    List<_AiBookRecommendation> recommendations,
     List<Book> libraryBooks,
   ) {
     final savedTitles = libraryBooks.map((book) {
-      return book.title.toLowerCase().trim();
+      return _normalizeTitle(book.title);
     }).toSet();
 
-    final usedTitles = currentRecommendations.map((book) {
-      return book.title.toLowerCase().trim();
-    }).toSet();
+    return recommendations.where((recommendation) {
+      final title = _normalizeTitle(recommendation.title);
+      return !savedTitles.contains(title);
+    }).toList();
+  }
 
-    final filled = [...currentRecommendations];
+  List<_AiBookRecommendation> _sortByMatchScore(
+    List<_AiBookRecommendation> recommendations,
+  ) {
+    final sorted = [...recommendations];
 
-    for (final fallback in _fallbackRecommendations) {
-      final titleKey = fallback.title.toLowerCase().trim();
+    sorted.sort((first, second) {
+      return second.matchScore.compareTo(first.matchScore);
+    });
 
-      if (filled.length >= 5) {
-        break;
-      }
+    return sorted;
+  }
 
-      if (savedTitles.contains(titleKey) || usedTitles.contains(titleKey)) {
-        continue;
-      }
-
-      filled.add(fallback);
-      usedTitles.add(titleKey);
-    }
-
-    return filled.take(5).toList();
+  String _normalizeTitle(String title) {
+    return title
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9 ]'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 
   Future<List<_AiBookRecommendation>> _addCoverImages(
@@ -752,17 +804,25 @@ Rules:
     required String title,
     required String author,
   }) async {
+    const googleBooksApiKey = String.fromEnvironment('GOOGLE_BOOKS_API_KEY');
+
     try {
       final query = 'intitle:$title inauthor:$author';
+
+      final queryParameters = {
+        'q': query,
+        'maxResults': '1',
+        'printType': 'books',
+      };
+
+      if (googleBooksApiKey.trim().isNotEmpty) {
+        queryParameters['key'] = googleBooksApiKey;
+      }
 
       final uri = Uri.https(
         'www.googleapis.com',
         '/books/v1/volumes',
-        {
-          'q': query,
-          'maxResults': '1',
-          'printType': 'books',
-        },
+        queryParameters,
       );
 
       final response = await http.get(uri);
@@ -847,60 +907,3 @@ class _AiBookRecommendation {
     );
   }
 }
-
-const List<_AiBookRecommendation> _fallbackRecommendations = [
-  _AiBookRecommendation(
-    title: 'Dune',
-    author: 'Frank Herbert',
-    genre: 'Science Fiction',
-    reason:
-        'A great pick if you enjoy detailed worlds, survival, politics, and classic speculative fiction.',
-    matchScore: 88,
-    coverUrl: '',
-  ),
-  _AiBookRecommendation(
-    title: 'The Martian',
-    author: 'Andy Weir',
-    genre: 'Science Fiction',
-    reason:
-        'A strong match for readers who like problem solving, survival, humor, and science-driven stories.',
-    matchScore: 85,
-    coverUrl: '',
-  ),
-  _AiBookRecommendation(
-    title: 'Project Hail Mary',
-    author: 'Andy Weir',
-    genre: 'Science Fiction',
-    reason:
-        'This fits well if you enjoy clever science, space survival, and fast-paced problem solving.',
-    matchScore: 84,
-    coverUrl: '',
-  ),
-  _AiBookRecommendation(
-    title: 'The Fellowship of the Ring',
-    author: 'J.R.R. Tolkien',
-    genre: 'Fantasy',
-    reason:
-        'A classic next read for fans of adventure, quests, rich worldbuilding, and timeless storytelling.',
-    matchScore: 82,
-    coverUrl: '',
-  ),
-  _AiBookRecommendation(
-    title: 'Mistborn',
-    author: 'Brandon Sanderson',
-    genre: 'Fantasy',
-    reason:
-        'A good pick if you want action, magic systems, rebellion, and an easy entry into modern fantasy.',
-    matchScore: 80,
-    coverUrl: '',
-  ),
-  _AiBookRecommendation(
-    title: 'Ender’s Game',
-    author: 'Orson Scott Card',
-    genre: 'Science Fiction',
-    reason:
-        'This works well for readers who enjoy strategy, competition, space settings, and character growth.',
-    matchScore: 79,
-    coverUrl: '',
-  ),
-];
