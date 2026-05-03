@@ -36,4 +36,11 @@ class LibraryProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+
+  Future<void> removeBook(Book book) async {
+  _savedBooks.removeWhere((item) => item.id == book.id);
+  await _saveToDisk(); // Don't forget to update SharedPreferences!
+  notifyListeners();
+}
 }
