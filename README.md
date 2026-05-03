@@ -1,4 +1,4 @@
-# HomeLib YO
+# HomeLib
 
 ## Inspiration
 
