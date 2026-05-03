@@ -1,31 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'book_detail_dialog.dart';
-
-// Imports the Book model so this screen knows what a Book object looks like.
-// The Book class stores information like title, author, and cover image URL.
 import '../models/book.dart';
-
-// Imports the function that talks to the Google Books API.
-// fetchBooks() is what actually searches for books online.
 import '../services/book_api.dart';
-
-// Imports our separate provider for books added from the search screen.
-// This keeps your checkmark/save-between-refreshes system working.
 import '../providers/book_collection_provider.dart';
-
-// Imports LibraryProvider.
-// This lets the HomeScreen send books to the LibraryScreen and Wish List.
 import '../providers/library_provider.dart';
 
-// HomeScreen is the main screen of the app.
-// It is StatefulWidget because the screen changes while the user uses it:
-// - the search text changes
-// - loading state changes
-// - error messages may appear
-// - book results update after a search
-// - hover state changes when the mouse moves over a book card
-// - added books need to update from plus icons to check icons
+const String kHomeLibAscii = r'''
+HHHHHHHHH     HHHHHHHHH                                                                  LLLLLLLLLLL             IIIIIIIIIIBBBBBBBBBBBBBBBBB   
+H:::::::H     H:::::::H                                                                  L:::::::::L             I::::::::IB::::::::::::::::B  
+H:::::::H     H:::::::H                                                                  L:::::::::L             I::::::::IB::::::BBBBBB:::::B 
+HH::::::H     H::::::HH                                                                  LL:::::::LL             II::::::IIBB:::::B     B:::::B
+  H:::::H     H:::::H     ooooooooooo      mmmmmmm    mmmmmmm       eeeeeeeeeeee           L:::::L                 I::::I    B::::B     B:::::B
+  H:::::H     H:::::H   oo:::::::::::oo  mm:::::::m  m:::::::mm   ee::::::::::::ee         L:::::L                 I::::I    B::::B     B:::::B
+  H::::::HHHHH::::::H  o:::::::::::::::om::::::::::mm::::::::::m e::::::eeeee:::::ee       L:::::L                 I::::I    B::::BBBBBB:::::B 
+  H:::::::::::::::::H  o:::::ooooo:::::om::::::::::::::::::::::me::::::e     e:::::e       L:::::L                 I::::I    B:::::::::::::BB  
+  H:::::::::::::::::H  o::::o     o::::om:::::mmm::::::mmm:::::me:::::::eeeee::::::e       L:::::L                 I::::I    B::::BBBBBB:::::B 
+  H::::::HHHHH::::::H  o::::o     o::::om::::m   m::::m   m::::me:::::::::::::::::e        L:::::L                 I::::I    B::::B     B:::::B
+  H:::::H     H:::::H  o::::o     o::::om::::m   m::::m   m::::me::::::eeeeeeeeeee         L:::::L                 I::::I    B::::B     B:::::B
+  H:::::H     H:::::H  o::::o     o::::om::::m   m::::m   m::::me:::::::e                  L:::::L         LLLLLL  I::::I    B::::B     B:::::B
+HH::::::H     H::::::HHo:::::ooooo:::::om::::m   m::::m   m::::me::::::::e               LL:::::::LLLLLLLLL:::::LII::::::IIBB:::::BBBBBB::::::B
+H:::::::H     H:::::::Ho:::::::::::::::om::::m   m::::m   m::::m e::::::::eeeeeeee       L::::::::::::::::::::::LI::::::::IB:::::::::::::::::B 
+H:::::::H     H:::::::H oo:::::::::::oo m::::m   m::::m   m::::m  ee:::::::::::::e       L::::::::::::::::::::::LI::::::::IB::::::::::::::::B  
+HHHHHHHHH     HHHHHHHHH   ooooooooooo   mmmmmm   mmmmmm   mmmmmm    eeeeeeeeeeeeee       LLLLLLLLLLLLLLLLLLLLLLLLIIIIIIIIIIBBBBBBBBBBBBBBBBB   
+''';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -33,76 +33,45 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-// This class holds the actual changing data/state for HomeScreen.
 class _HomeScreenState extends State<HomeScreen> {
-  // Controller used to read what the user types into the search TextField.
-  // Without this, we would not easily know what book title the user searched.
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _asciiScrollController = ScrollController();
 
-  // Stores the list of books returned from the Google Books API.
-  // It starts empty because no search has happened yet.
   List<Book> _books = [];
-
-  // Tracks whether a search is currently running.
-  // When true, we show a loading spinner and disable the Search button.
   bool _isLoading = false;
-
-  // Stores an error message if something goes wrong during the search.
-  // It starts empty because there is no error at first.
+  bool _hasSearched = false;
   String _errorMessage = '';
-
-  // Stores which book card is currently being hovered over.
-  // This allows us to darken only the image that the mouse is over.
-  // The ? means it can be null when no card is being hovered.
   int? _hoveredIndex;
 
-  // This function runs when the user presses the Search button
-  // or presses Enter inside the search box.
   Future<void> _searchBooks() async {
-    // Prevents tiny or empty searches from being sent to the API.
-    // This helps avoid unnecessary API calls.
     if (_searchController.text.trim().length < 2) {
       return;
     }
 
-    // setState tells Flutter that something changed and the screen
-    // needs to rebuild with the new values.
     setState(() {
-      // Shows the loading spinner and changes the button text to "Loading..."
       _isLoading = true;
-
-      // Clears any old error message from a previous failed search.
+      _hasSearched = true;
       _errorMessage = '';
+      _books = [];
     });
 
     try {
-      // Calls the Google Books API using the user's search text.
-      // await means the app waits here until the API returns results.
       final results = await fetchBooks(_searchController.text);
 
-      // Once the API returns results, save them into _books.
-      // This causes the grid below to display the new books.
       setState(() {
         _books = results;
       });
     } catch (error) {
-      // If something goes wrong, such as no internet, bad API key,
-      // or rate limiting, show an error message on the page.
       setState(() {
         _errorMessage = 'Failed to search books: $error';
       });
     } finally {
-      // finally always runs whether the search worked or failed.
-      // This makes sure the loading spinner turns off.
       setState(() {
         _isLoading = false;
       });
     }
   }
 
-  // This adds a book to the main library / collection.
-  // It updates both providers so the search card checkmark and LibraryScreen
-  // stay in sync.
   Future<void> _addBookToLibrary(Book book) async {
     final collectionProvider = context.read<BookCollectionProvider>();
     final libraryProvider = context.read<LibraryProvider>();
@@ -129,8 +98,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // This adds a book to the wish list.
-  // It uses the wishlist system inside LibraryProvider.
   Future<void> _addBookToWishList(Book book) async {
     final libraryProvider = context.read<LibraryProvider>();
 
@@ -165,135 +132,70 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // This helper function builds one Plex-style book card.
-  // It keeps the main build() method cleaner because the card UI is longer.
   Widget _buildBookCard(Book book, int index) {
-    // Checks whether this specific card is the one currently being hovered.
-    // If true, we show the dark overlay and the small action buttons.
     final bool isHovered = _hoveredIndex == index;
 
-    // Reads our shared book collection provider.
-    // This lets the card know if this book has already been added.
     final bookCollection = context.watch<BookCollectionProvider>();
-
-    // Checks if this specific book is already saved in our added books list.
-    // If true, the library button will show a checkmark instead of a plus sign.
     final bool isAdded = bookCollection.isBookAdded(book);
 
-    // Reads LibraryProvider so this card can know whether the book
-    // is already in the wish list.
     final libraryProvider = context.watch<LibraryProvider>();
-
     final bool isInWishList = libraryProvider.wishlist.any(
       (savedBook) => savedBook.id == book.id,
     );
 
-    // Buttons show on hover, but stay visible if the book is already
-    // in the library or wish list.
     final bool shouldShowLibraryButton = isHovered || isAdded;
     final bool shouldShowWishListButton = isHovered || isInWishList;
 
-    // MouseRegion lets Flutter detect when the mouse enters or leaves a card.
-    // This is what makes the hover effect work on web/desktop.
     return MouseRegion(
-      // Runs when the mouse moves onto this card.
       onEnter: (_) {
         setState(() {
           _hoveredIndex = index;
         });
       },
-
-      // Runs when the mouse leaves this card.
       onExit: (_) {
         setState(() {
           _hoveredIndex = null;
         });
       },
-
-      // Column stacks the cover image on top and the text underneath.
-      // This matches the Plex-style layout better than ListTile.
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Expanded gives the cover image most of the vertical card space.
           Expanded(
-            // Stack lets us layer widgets on top of each other:
-            // 1. book cover image
-            // 2. dark hover overlay
-            // 3. transparent popup click layer
-            // 4. center "View Details" hover label
-            // 5. add-to-library button in the bottom-left corner
-            // 6. add-to-wish-list button in the bottom-right corner
             child: Stack(
               children: [
-                // Positioned.fill makes the cover image fill the whole image area.
                 Positioned.fill(
                   child: ClipRRect(
-                    // Rounds the corners of the book cover.
-                    borderRadius: BorderRadius.circular(10),
-
-                    // If the book has a cover URL, try to load it.
-                    // If not, show a default fallback box with a book icon.
+                    borderRadius: BorderRadius.circular(12),
                     child: book.thumbnailUrl.isNotEmpty
                         ? Image.network(
                             book.thumbnailUrl,
-
-                            // Makes the image fill the available space
-                            // without looking stretched.
                             fit: BoxFit.cover,
-
-                            // This helps Flutter web load Google Books images
-                            // by asking Flutter to use a normal browser image element when possible.
                             webHtmlElementStrategy:
                                 WebHtmlElementStrategy.prefer,
-
-                            // If the image fails to load, show a clean fallback
-                            // instead of Flutter's ugly red error box.
                             errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: Colors.grey.shade300,
-                                child: const Center(
-                                  child: Icon(Icons.book, size: 40),
-                                ),
-                              );
+                              return _buildCoverFallback();
                             },
                           )
-                        : Container(
-                            color: Colors.grey.shade300,
-                            child: const Center(
-                              child: Icon(Icons.book, size: 40),
-                            ),
-                          ),
+                        : _buildCoverFallback(),
                   ),
                 ),
-
-                // This is the dark overlay that appears on hover.
-                // It sits on top of the image but underneath the buttons.
                 Positioned.fill(
                   child: AnimatedOpacity(
-                    // Controls how fast the dark overlay fades in and out.
                     duration: const Duration(milliseconds: 180),
-
-                    // If hovered, make the overlay visible.
-                    // If not hovered, make it invisible.
-                    opacity: isHovered ? 0.40 : 0.0,
-
+                    opacity: isHovered ? 0.42 : 0.0,
                     child: Container(
                       decoration: BoxDecoration(
                         color: Colors.black,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),
                 ),
-
-                // This transparent layer makes the book cover clickable.
-                // It opens the detail popup.
                 Positioned.fill(
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                       onTap: () {
                         showDialog(
                           context: context,
@@ -306,10 +208,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-
-                // Center hover label:
-                // This makes it clear that clicking the cover opens the detail popup.
-                // IgnorePointer lets clicks pass through to the transparent popup layer.
                 Positioned.fill(
                   child: IgnorePointer(
                     child: AnimatedOpacity(
@@ -322,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             vertical: 9,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.70),
+                            color: Colors.black.withOpacity(0.72),
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(
                               color: Colors.white.withOpacity(0.25),
@@ -342,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 13,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ],
@@ -352,20 +250,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-
-                // Bottom-left button:
-                // Adds the book to the main library / collection.
                 Positioned(
                   left: 8,
                   bottom: 8,
                   child: AnimatedOpacity(
-                    // Makes the button fade in and out smoothly.
                     duration: const Duration(milliseconds: 180),
-
-                    // Shows button while hovered.
-                    // Also keeps it visible if the book has already been added.
                     opacity: shouldShowLibraryButton ? 1.0 : 0.0,
-
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
@@ -376,14 +266,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           height: 42,
                           decoration: BoxDecoration(
                             color: isAdded
-                                ? Colors.green.withOpacity(0.90)
+                                ? Colors.green.withOpacity(0.95)
                                 : Colors.amber.shade700.withOpacity(0.95),
                             shape: BoxShape.circle,
                             boxShadow: const [
                               BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 6,
-                                offset: Offset(0, 2),
+                                color: Colors.black38,
+                                blurRadius: 8,
+                                offset: Offset(0, 3),
                               ),
                             ],
                           ),
@@ -397,20 +287,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-
-                // Bottom-right button:
-                // Adds the book to the wish list.
                 Positioned(
                   right: 8,
                   bottom: 8,
                   child: AnimatedOpacity(
-                    // Makes the button fade in and out smoothly.
                     duration: const Duration(milliseconds: 180),
-
-                    // Shows button while hovered.
-                    // Also keeps it visible if the book is already in the wish list.
                     opacity: shouldShowWishListButton ? 1.0 : 0.0,
-
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
@@ -426,9 +308,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             shape: BoxShape.circle,
                             boxShadow: const [
                               BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 6,
-                                offset: Offset(0, 2),
+                                color: Colors.black38,
+                                blurRadius: 8,
+                                offset: Offset(0, 3),
                               ),
                             ],
                           ),
@@ -447,33 +329,24 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-
-          // Adds space between the cover image and the book title.
           const SizedBox(height: 8),
-
-          // Shows the book title underneath the image.
-          // maxLines keeps long titles from taking over the whole card.
           Text(
             book.title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontWeight: FontWeight.w600,
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
               fontSize: 14,
             ),
           ),
-
-          // Adds a little space between title and author.
           const SizedBox(height: 4),
-
-          // Shows the author name underneath the title.
-          // The gray color makes it feel secondary, like Plex metadata text.
           Text(
             book.authors,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: Colors.grey.shade700,
+              color: Colors.grey.shade400,
               fontSize: 12,
             ),
           ),
@@ -482,138 +355,286 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildCoverFallback() {
+    return Container(
+      color: const Color(0xFF252525),
+      child: Center(
+        child: Icon(
+          Icons.book,
+          size: 42,
+          color: Colors.grey.shade500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFixedWidthAscii() {
+    const double characterWidth = 7.2;
+    const double lineHeight = 13.0;
+    const double fontSize = 13.0;
+
+    final List<String> lines = kHomeLibAscii.split('\n');
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: lines.map((line) {
+        return SizedBox(
+          height: lineHeight,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: line.split('').map((character) {
+              return SizedBox(
+                width: characterWidth,
+                child: character == ' '
+                    ? const SizedBox.shrink()
+                    : Text(
+                        character,
+                        textScaler: TextScaler.noScaling,
+                        style: const TextStyle(
+                          color: Color(0xFFF4A261),
+                          fontSize: fontSize,
+                          height: 1.0,
+                          fontFamily: 'CascadiaMono',
+                          fontWeight: FontWeight.normal,
+                          letterSpacing: 0,
+                          wordSpacing: 0,
+                        ),
+                      ),
+              );
+            }).toList(),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
   @override
   void dispose() {
-    // Disposes of the text controller when this screen is removed.
-    // This prevents memory leaks.
     _searchController.dispose();
-
-    // Calls the parent dispose method.
+    _asciiScrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Scaffold gives the page its basic layout structure,
-    // including an app bar and body area.
     return Scaffold(
-      // The top bar of the app.
-      appBar: AppBar(
-        title: const Text('HomeLIB'),
-      ),
+      backgroundColor: const Color(0xFF101010),
 
-      // The body contains the search bar, loading spinner,
-      // error message, and book results grid.
+      // No AppBar here.
+      // The sidebar still stays because it is controlled by main.dart.
       body: Column(
         children: [
-          // Padding adds space around the search row so it is not
-          // touching the edges of the screen.
           Padding(
-            padding: const EdgeInsets.all(12),
-
-            // Row places the search box and Search button side by side.
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 14),
             child: Row(
               children: [
-                // Expanded makes the TextField take up all available
-                // horizontal space except for the button.
                 Expanded(
                   child: TextField(
-                    // Connects this text box to _searchController
-                    // so we can read what the user typed.
                     controller: _searchController,
-
-                    // Controls the label, hint text, and border style.
-                    decoration: const InputDecoration(
+                    style: const TextStyle(color: Colors.white),
+                    cursorColor: Colors.amber,
+                    decoration: InputDecoration(
                       labelText: 'Search for a book',
                       hintText: 'Example: The Hobbit',
-                      border: OutlineInputBorder(),
+                      labelStyle: TextStyle(color: Colors.grey.shade400),
+                      hintStyle: TextStyle(color: Colors.grey.shade600),
+                      filled: true,
+                      fillColor: const Color(0xFF1E1E1E),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: Colors.grey.shade500,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: Colors.grey.shade800),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: Colors.amber.shade700,
+                          width: 2,
+                        ),
+                      ),
                     ),
-
-                    // Runs a search when the user presses Enter.
-                    // The underscore means we are ignoring the submitted text
-                    // because we already read it from _searchController.
                     onSubmitted: (_) => _searchBooks(),
                   ),
                 ),
-
-                // Adds horizontal space between the text box and button.
-                const SizedBox(width: 8),
-
-                // Search button that calls _searchBooks().
+                const SizedBox(width: 10),
                 ElevatedButton(
-                  // If a search is already loading, disable the button.
-                  // This prevents users from accidentally sending
-                  // multiple API requests at the same time.
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber.shade700,
+                    foregroundColor: Colors.black,
+                    disabledBackgroundColor: Colors.grey.shade800,
+                    disabledForegroundColor: Colors.grey.shade500,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 18,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
                   onPressed: _isLoading ? null : _searchBooks,
-
-                  // The button text changes while loading.
-                  child: Text(_isLoading ? 'Loading...' : 'Search'),
+                  child: Text(
+                    _isLoading ? 'Loading...' : 'Search',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                 ),
               ],
             ),
           ),
-
-          // Shows a loading spinner only while _isLoading is true.
           if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(20),
-              child: CircularProgressIndicator(),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: CircularProgressIndicator(
+                color: Colors.amber.shade700,
+              ),
             ),
-
-          // Shows an error message only if _errorMessage is not empty.
           if (_errorMessage.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                _errorMessage,
-
-                // Makes the error text red so it is clearly visible.
-                style: const TextStyle(color: Colors.red),
-              ),
-            ),
-
-          // Expanded makes the book grid fill the remaining vertical space.
-          // Without Expanded, the GridView could cause layout errors inside a Column.
-          Expanded(
-            // Padding keeps the grid from touching the edges of the screen.
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-
-              // GridView.builder creates a Plex-style grid of book cards.
-              // This replaces the old vertical ListView layout.
-              child: GridView.builder(
-                // Number of books currently stored in the results list.
-                itemCount: _books.length,
-
-                // Controls how the grid is arranged.
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  // Number of cards per row.
-                  // Lower this to 4 if the cards feel too small.
-                  crossAxisCount: 5,
-
-                  // Horizontal spacing between cards.
-                  crossAxisSpacing: 16,
-
-                  // Vertical spacing between rows.
-                  mainAxisSpacing: 20,
-
-                  // Controls card shape.
-                  // Smaller numbers make cards taller like posters/book covers.
-                  childAspectRatio: 0.62,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade900.withOpacity(0.35),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.shade700),
                 ),
-
-                // Builds one card for each book.
-                itemBuilder: (context, index) {
-                  // Gets the current book from the list based on its index.
-                  final book = _books[index];
-
-                  // Uses the helper function above to build the card UI.
-                  return _buildBookCard(book, index);
-                },
+                child: Text(
+                  _errorMessage,
+                  style: TextStyle(
+                    color: Colors.red.shade100,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
+          Expanded(
+            child: !_hasSearched && !_isLoading
+                ? _buildLandingState()
+                : _books.isEmpty && !_isLoading
+                    ? _buildNoResultsState()
+                    : Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: GridView.builder(
+                          itemCount: _books.length,
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 5,
+                            crossAxisSpacing: 18,
+                            mainAxisSpacing: 22,
+                            childAspectRatio: 0.62,
+                          ),
+                          itemBuilder: (context, index) {
+                            final book = _books[index];
+                            return _buildBookCard(book, index);
+                          },
+                        ),
+                      ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLandingState() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+        decoration: BoxDecoration(
+          color: const Color(0xFF101010),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFF2A2A2A)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Scrollbar(
+              controller: _asciiScrollController,
+              thumbVisibility: true,
+              trackVisibility: true,
+              child: SingleChildScrollView(
+                controller: _asciiScrollController,
+                scrollDirection: Axis.horizontal,
+                child: _buildFixedWidthAscii(),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Welcome to HomeLIB v1.0.0',
+              style: TextStyle(
+                color: Color(0xFFF4A261),
+                fontSize: 30,
+                fontFamily: 'CascadiaMono',
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Type a title or author in the search bar above to begin.',
+              style: TextStyle(
+                color: Colors.grey.shade300,
+                fontSize: 14,
+                fontFamily: 'CascadiaMono',
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Search books. Open details. Add to your library or wish list.',
+              style: TextStyle(
+                color: Colors.grey.shade500,
+                fontSize: 13,
+                fontFamily: 'CascadiaMono',
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoResultsState() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: const Color(0xFF181818),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFF2A2A2A)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.search_off,
+              color: Colors.amber.shade700,
+              size: 54,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'No books found',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try searching with a different title, author, or keyword.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey.shade400,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
