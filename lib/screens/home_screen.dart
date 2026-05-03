@@ -9,8 +9,15 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('HomeLIB'),
       ),
-      body: const Center(
-        child: Text('Welcome to HomeLIB'),
+      body: Padding(
+        padding: const EdgeInsets.all(12),
+        child: TextField(
+          decoration: const InputDecoration(
+            labelText: 'Search for a book',
+            hintText: 'Example: The Hobbit',
+            border: OutlineInputBorder(),
+          ),
+        ),
       ),
     );
   }
