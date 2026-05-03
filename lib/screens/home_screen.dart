@@ -17,6 +17,10 @@ class _HomeScreenState extends State<HomeScreen> {
   String _errorMessage = '';
 
   Future<void> _searchBooks() async {
+    if (_searchController.text.trim().length < 2) {
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -30,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     } catch (error) {
       setState(() {
-        _errorMessage = 'Failed to search books. Try again.';
+        _errorMessage = 'Failed to search books: $error';
       });
     } finally {
       setState(() {
@@ -51,28 +55,58 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('HomeLIB'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _searchController,
-                decoration: const InputDecoration(
-                  labelText: 'Search for a book',
-                  hintText: 'Example: The Hobbit',
-                  border: OutlineInputBorder(),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      labelText: 'Search for a book',
+                      hintText: 'Example: The Hobbit',
+                      border: OutlineInputBorder(),
+                    ),
+                    onSubmitted: (_) => _searchBooks(),
+                  ),
                 ),
-                onSubmitted: (_) => _searchBooks(),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _searchBooks,
+                  child: Text(_isLoading ? 'Loading...' : 'Search'),
+                ),
+              ],
+            ),
+          ),
+          if (_isLoading)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(),
+            ),
+          if (_errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                _errorMessage,
+                style: const TextStyle(color: Colors.red),
               ),
             ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: _searchBooks,
-              child: Text(_isLoading ? 'Loading...' : 'Search'),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _books.length,
+              itemBuilder: (context, index) {
+                final book = _books[index];
+
+                return ListTile(
+                  title: Text(book.title),
+                  subtitle: Text(book.authors),
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

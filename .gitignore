@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+
+# API keys and other secrets
+# You should not commit secrets to version control.
+.env
