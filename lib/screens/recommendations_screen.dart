@@ -560,7 +560,6 @@ Rules:
 - Do not include a greeting.
 - Do not include extra paragraphs.
 - Each book must have TITLE, AUTHOR, GENRE, WHY, and MATCH.
-- Match must be a number from 70 to 99 if possible.
 ''';
   }
 
