@@ -17,32 +17,23 @@ Future<void> main() async {
   } catch (error) {
     // If .env fails to load, the app will still open.
     // This helps prevent a blank screen during testing.
-    print('Could not load .env file: $error');
+    debugPrint('Could not load .env file: $error');
   }
 
   runApp(
     // MultiProvider lets the app use more than one provider at the same time.
-    // This is important because we want to use our provider without changing
-    // your buddy's library_provider.dart file.
     MultiProvider(
       providers: [
-        // ADDED/KEEP THIS:
-        // This is our provider for books added from the search screen.
-        // This provider will handle saving added books between refreshes.
+        // This provider controls the search-page add/checkmark behavior.
         ChangeNotifierProvider(
           create: (context) => BookCollectionProvider(),
         ),
 
-        // KEEP THIS:
-        // This is your buddy's provider.
-        // We are including it so their screen can still use it,
-        // but we are not editing their library_provider.dart file.
+        // This provider controls the main library and wish list.
         ChangeNotifierProvider(
           create: (context) => LibraryProvider(),
         ),
       ],
-
-      // The actual app starts here after both providers are created.
       child: const HomeLibApp(),
     ),
   );
@@ -56,9 +47,28 @@ class HomeLibApp extends StatelessWidget {
     return MaterialApp(
       title: 'HomeLIB',
       debugShowCheckedModeBanner: false,
+
+      // Dark Plex-style global theme.
       theme: ThemeData(
-        colorSchemeSeed: Colors.indigo,
         useMaterial3: true,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF101010),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.amber,
+          brightness: Brightness.dark,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF101010),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: false,
+        ),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
       ),
 
       // Starts the app on the navigation wrapper.
@@ -82,19 +92,20 @@ class _MainNavigationState extends State<MainNavigation> {
   int _selectedIndex = 0;
 
   // These are the screens that the sidebar switches between.
-  // The order must match the NavigationRail destinations below.
   final List<Widget> _pages = [
     const HomeScreen(),
-    LibraryScreen(),
+    const LibraryScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF101010),
+
       // Row places the sidebar navigation and main content side by side.
       body: Row(
         children: [
-          // Sidebar navigation.
+          // Dark Plex-style sidebar navigation.
           NavigationRail(
             selectedIndex: _selectedIndex,
 
@@ -105,12 +116,24 @@ class _MainNavigationState extends State<MainNavigation> {
               });
             },
 
-            // Shows text labels for each destination.
             labelType: NavigationRailLabelType.all,
+            backgroundColor: const Color(0xFF181818),
+            indicatorColor: Colors.amber.shade700.withOpacity(0.18),
 
-            // Light indigo styling to match the app theme.
-            backgroundColor: Colors.indigo.withOpacity(0.05),
-            indicatorColor: Colors.indigo.withOpacity(0.2),
+            selectedIconTheme: IconThemeData(
+              color: Colors.amber.shade700,
+            ),
+            unselectedIconTheme: IconThemeData(
+              color: Colors.grey.shade500,
+            ),
+            selectedLabelTextStyle: TextStyle(
+              color: Colors.amber.shade700,
+              fontWeight: FontWeight.w700,
+            ),
+            unselectedLabelTextStyle: TextStyle(
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w500,
+            ),
 
             destinations: const [
               NavigationRailDestination(
@@ -126,8 +149,12 @@ class _MainNavigationState extends State<MainNavigation> {
             ],
           ),
 
-          // Vertical divider between sidebar and screen content.
-          const VerticalDivider(thickness: 1, width: 1),
+          // Dark divider between sidebar and screen content.
+          const VerticalDivider(
+            thickness: 1,
+            width: 1,
+            color: Color(0xFF2A2A2A),
+          ),
 
           // Main screen area.
           // IndexedStack keeps both screens alive when switching tabs.
