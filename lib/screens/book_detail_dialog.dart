@@ -30,6 +30,16 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
   // description is still loading.
   late Future<Map<String, dynamic>> _bookDetailsFuture;
 
+  // Controller for the user's personal notes.
+  final TextEditingController _notesController = TextEditingController();
+
+  // The user's personal star rating.
+  // 0 means the user has not rated the book yet.
+  double _personalRating = 0;
+
+  // Makes sure we only load saved personal details one time.
+  bool _loadedPersonalDetails = false;
+
   @override
   void initState() {
     super.initState();
@@ -38,8 +48,36 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
     _bookDetailsFuture = _fetchBookDetails();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Load personal rating and notes from the saved library/wishlist copy.
+    // This runs after context is available.
+    if (!_loadedPersonalDetails) {
+      final savedBook =
+          context.read<LibraryProvider>().findSavedBook(widget.book);
+
+      if (savedBook != null) {
+        _personalRating = savedBook.personalRating;
+        _notesController.text = savedBook.notes;
+      } else {
+        _personalRating = widget.book.personalRating;
+        _notesController.text = widget.book.notes;
+      }
+
+      _loadedPersonalDetails = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
   // This function gets extra details for one specific book using its Google Books ID.
-  // We do this here so we do not have to change the main Book model.
+  // We do this here so we do not have to change the main Book model for API-only data.
   Future<Map<String, dynamic>> _fetchBookDetails() async {
     final url = Uri.https(
       'www.googleapis.com',
@@ -61,7 +99,10 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
       'publisher': volumeInfo['publisher'] ?? '',
       'publishedDate': volumeInfo['publishedDate'] ?? '',
       'pageCount': volumeInfo['pageCount']?.toString() ?? '',
-      'categories': (volumeInfo['categories'] as List<dynamic>?)?.join(', ') ?? '',
+      'categories':
+          (volumeInfo['categories'] as List<dynamic>?)?.join(', ') ?? '',
+      'averageRating': volumeInfo['averageRating']?.toString() ?? '',
+      'ratingsCount': volumeInfo['ratingsCount']?.toString() ?? '',
     };
   }
 
@@ -128,6 +169,19 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
     return '${parts.take(3).join(' • ')} • ...';
   }
 
+  // Formats Google Books API rating data.
+  String _formatGoogleRating(String averageRating, String ratingsCount) {
+    if (averageRating.isEmpty) {
+      return '';
+    }
+
+    if (ratingsCount.isNotEmpty && ratingsCount != '0') {
+      return '⭐ $averageRating / 5 ($ratingsCount)';
+    }
+
+    return '⭐ $averageRating / 5';
+  }
+
   // This adds the selected book to both providers:
   // 1. BookCollectionProvider controls the plus/checkmark state on HomeScreen.
   // 2. LibraryProvider controls what appears in the main LibraryScreen.
@@ -135,9 +189,14 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
     final alreadyAdded =
         context.read<BookCollectionProvider>().isBookAdded(widget.book);
 
+    final bookWithDetails = widget.book.copyWith(
+      personalRating: _personalRating,
+      notes: _notesController.text.trim(),
+    );
+
     if (!alreadyAdded) {
-      await context.read<BookCollectionProvider>().addBook(widget.book);
-      await context.read<LibraryProvider>().addBook(widget.book);
+      await context.read<BookCollectionProvider>().addBook(bookWithDetails);
+      await context.read<LibraryProvider>().addBook(bookWithDetails);
     }
 
     if (!context.mounted) return;
@@ -169,10 +228,14 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
       (savedBook) => savedBook.id == widget.book.id,
     );
 
+    final bookWithDetails = widget.book.copyWith(
+      status: 'Wish List',
+      personalRating: _personalRating,
+      notes: _notesController.text.trim(),
+    );
+
     if (!alreadyInWishList && !alreadyInLibrary) {
-      await libraryProvider.addToWishlist(
-        widget.book.copyWith(status: 'Wish List'),
-      );
+      await libraryProvider.addToWishlist(bookWithDetails);
     }
 
     if (!context.mounted) return;
@@ -187,6 +250,52 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
                   : 'Added ${widget.book.title} to Wish List!',
         ),
         backgroundColor: Colors.blue,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // Saves the user's personal rating and notes.
+  // If the book is not already saved anywhere, this adds it to the main library
+  // so the notes have somewhere to live.
+  Future<void> _savePersonalDetails(BuildContext context) async {
+    final libraryProvider = context.read<LibraryProvider>();
+    final collectionProvider = context.read<BookCollectionProvider>();
+
+    final notes = _notesController.text.trim();
+
+    final alreadyInLibrary = libraryProvider.savedBooks.any(
+      (savedBook) => savedBook.id == widget.book.id,
+    );
+
+    final alreadyInWishList = libraryProvider.wishlist.any(
+      (savedBook) => savedBook.id == widget.book.id,
+    );
+
+    final bookWithDetails = widget.book.copyWith(
+      personalRating: _personalRating,
+      notes: notes,
+    );
+
+    if (alreadyInLibrary || alreadyInWishList) {
+      await libraryProvider.updateBookPersonalDetails(
+        widget.book,
+        _personalRating,
+        notes,
+      );
+    } else {
+      // If the user writes notes before adding the book,
+      // save it to the main library automatically.
+      await collectionProvider.addBook(bookWithDetails);
+      await libraryProvider.addBook(bookWithDetails);
+    }
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Saved notes for ${widget.book.title}'),
+        backgroundColor: Colors.deepPurple,
         duration: const Duration(seconds: 2),
       ),
     );
@@ -218,7 +327,7 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(
           maxWidth: 1050,
-          maxHeight: 670,
+          maxHeight: 720,
         ),
 
         // Stack lets us place the X button in the top-right corner.
@@ -228,11 +337,48 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
               padding: const EdgeInsets.all(30),
 
               // Main popup layout:
-              // book cover on the left, details on the right.
+              // book cover and personal rating on the left,
+              // details, description, and notes on the right.
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildCover(),
+                  // Left side with cover and personal rating.
+                  SizedBox(
+                    width: 260,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildCover(),
+
+                        const SizedBox(height: 18),
+
+                        const Text(
+                          'Your Rating',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        _buildPersonalRatingStars(),
+
+                        const SizedBox(height: 6),
+
+                        Text(
+                          _personalRating == 0
+                              ? 'Tap a star to rate this book'
+                              : '${_personalRating.toStringAsFixed(0)} / 5 stars',
+                          style: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
                   const SizedBox(width: 34),
 
@@ -256,6 +402,16 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
                             details['pageCount']?.toString() ?? '';
                         final categories =
                             details['categories']?.toString() ?? '';
+
+                        final averageRating =
+                            details['averageRating']?.toString() ?? '';
+                        final ratingsCount =
+                            details['ratingsCount']?.toString() ?? '';
+
+                        final googleRating = _formatGoogleRating(
+                          averageRating,
+                          ratingsCount,
+                        );
 
                         // Shortened version of the long Google Books category list.
                         final shortCategories = _formatCategories(categories);
@@ -301,6 +457,9 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
 
                                   if (publisher.isNotEmpty)
                                     _buildChip(publisher),
+
+                                  if (googleRating.isNotEmpty)
+                                    _buildChip(googleRating),
 
                                   if (shortCategories.isNotEmpty)
                                     _buildChip(
@@ -405,6 +564,73 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
                                     height: 1.6,
                                   ),
                                 ),
+
+                              const SizedBox(height: 30),
+
+                              const Text(
+                                'My Notes',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+
+                              const SizedBox(height: 10),
+
+                              TextField(
+                                controller: _notesController,
+                                minLines: 4,
+                                maxLines: 8,
+                                style: const TextStyle(color: Colors.white),
+                                decoration: InputDecoration(
+                                  hintText:
+                                      'Write your thoughts about this book...',
+                                  hintStyle: TextStyle(
+                                    color: Colors.grey.shade500,
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey.shade900,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide(
+                                      color: Colors.amber.shade700,
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 12),
+
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.deepPurple.shade500,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 14,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                                onPressed: () => _savePersonalDetails(context),
+                                icon: const Icon(Icons.save_outlined),
+                                label: const Text('Save Rating & Notes'),
+                              ),
                             ],
                           ),
                         );
@@ -472,6 +698,34 @@ class _BookDetailDialogState extends State<BookDetailDialog> {
           color: Colors.white70,
         ),
       ),
+    );
+  }
+
+  // Builds the user's personal star rating row under the cover image.
+  Widget _buildPersonalRatingStars() {
+    return Row(
+      children: List.generate(5, (index) {
+        final starValue = index + 1;
+        final isSelected = _personalRating >= starValue;
+
+        return IconButton(
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(
+            minWidth: 36,
+            minHeight: 36,
+          ),
+          onPressed: () {
+            setState(() {
+              _personalRating = starValue.toDouble();
+            });
+          },
+          icon: Icon(
+            isSelected ? Icons.star : Icons.star_border,
+            color: Colors.amber.shade600,
+            size: 32,
+          ),
+        );
+      }),
     );
   }
 

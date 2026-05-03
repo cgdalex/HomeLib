@@ -1,6 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+
 import '../models/book.dart';
 
 class LibraryProvider extends ChangeNotifier {
@@ -14,15 +16,18 @@ class LibraryProvider extends ChangeNotifier {
     loadLibrary();
   }
 
-  // --- COLLECTION METHODS ---
+  // -----------------------------
+  // COLLECTION METHODS
+  // -----------------------------
 
   Future<void> addBook(Book book) async {
-  if (_savedBooks.any((b) => b.id == book.id)) {
-    return;
-  }
-  _savedBooks.add(book);
-  notifyListeners();
-  await _saveToDisk();
+    if (_savedBooks.any((b) => b.id == book.id)) {
+      return;
+    }
+
+    _savedBooks.add(book);
+    notifyListeners();
+    await _saveToDisk();
   }
 
   Future<void> removeBook(Book book) async {
@@ -32,7 +37,8 @@ class LibraryProvider extends ChangeNotifier {
   }
 
   Future<void> updateBookStatus(Book book, String newStatus) async {
-    int index = _savedBooks.indexWhere((b) => b.id == book.id);
+    final index = _savedBooks.indexWhere((b) => b.id == book.id);
+
     if (index != -1) {
       _savedBooks[index] = _savedBooks[index].copyWith(status: newStatus);
       notifyListeners();
@@ -40,23 +46,73 @@ class LibraryProvider extends ChangeNotifier {
     }
   }
 
-  // --- WISHLIST METHODS ---
+  // Updates the user's personal rating and notes.
+  // This checks both the main library and the wishlist because the user
+  // may save notes for a book in either place.
+  Future<void> updateBookPersonalDetails(
+    Book book,
+    double personalRating,
+    String notes,
+  ) async {
+    final libraryIndex = _savedBooks.indexWhere((b) => b.id == book.id);
 
-  Future<void> addToWishlist(Book book) async {
-  // 1. Check if it's already in the wishlist
-  bool alreadyInWishlist = _wishlist.any((b) => b.id == book.id);
-  
-  // 2. EXTRA UX CHECK: If it's already in the Library, maybe they don't need it in Wishlist?
-  bool alreadyInLibrary = _savedBooks.any((b) => b.id == book.id);
+    if (libraryIndex != -1) {
+      _savedBooks[libraryIndex] = _savedBooks[libraryIndex].copyWith(
+        personalRating: personalRating,
+        notes: notes,
+      );
+    }
 
-  if (alreadyInWishlist || alreadyInLibrary) {
-    debugPrint("Duplicate prevented: ${book.title} already exists in a list.");
-    return;
+    final wishlistIndex = _wishlist.indexWhere((b) => b.id == book.id);
+
+    if (wishlistIndex != -1) {
+      _wishlist[wishlistIndex] = _wishlist[wishlistIndex].copyWith(
+        personalRating: personalRating,
+        notes: notes,
+      );
+    }
+
+    notifyListeners();
+    await _saveToDisk();
   }
 
-  _wishlist.add(book);
-  notifyListeners();
-  await _saveToDisk();
+  // Finds the saved version of a book if it already exists.
+  // This is useful because the popup may be opened from search results,
+  // but the saved copy may have personal notes/rating.
+  Book? findSavedBook(Book book) {
+    final libraryIndex = _savedBooks.indexWhere((b) => b.id == book.id);
+
+    if (libraryIndex != -1) {
+      return _savedBooks[libraryIndex];
+    }
+
+    final wishlistIndex = _wishlist.indexWhere((b) => b.id == book.id);
+
+    if (wishlistIndex != -1) {
+      return _wishlist[wishlistIndex];
+    }
+
+    return null;
+  }
+
+  // -----------------------------
+  // WISHLIST METHODS
+  // -----------------------------
+
+  Future<void> addToWishlist(Book book) async {
+    final alreadyInWishlist = _wishlist.any((b) => b.id == book.id);
+    final alreadyInLibrary = _savedBooks.any((b) => b.id == book.id);
+
+    if (alreadyInWishlist || alreadyInLibrary) {
+      debugPrint(
+        'Duplicate prevented: ${book.title} already exists in a list.',
+      );
+      return;
+    }
+
+    _wishlist.add(book);
+    notifyListeners();
+    await _saveToDisk();
   }
 
   Future<void> removeFromWishlist(Book book) async {
@@ -66,43 +122,53 @@ class LibraryProvider extends ChangeNotifier {
   }
 
   Future<void> moveToLibrary(Book book) async {
-    // 1. Remove from wishlist
     _wishlist.removeWhere((item) => item.id == book.id);
-    // 2. Add to library if not already there
+
     if (!_savedBooks.any((b) => b.id == book.id)) {
-      _savedBooks.add(book);
+      _savedBooks.add(book.copyWith(status: 'Want to Read'));
     }
+
     notifyListeners();
     await _saveToDisk();
   }
 
-  // --- PERSISTENCE (Saving & Loading) ---
+  // -----------------------------
+  // PERSISTENCE
+  // -----------------------------
 
   Future<void> _saveToDisk() async {
     final prefs = await SharedPreferences.getInstance();
-    
-    // Save both lists separately
-    List<String> libraryList = _savedBooks.map((b) => jsonEncode(b.toJson())).toList();
-    List<String> wishlistList = _wishlist.map((b) => jsonEncode(b.toJson())).toList();
-    
+
+    final libraryList = _savedBooks.map((book) {
+      return jsonEncode(book.toJson());
+    }).toList();
+
+    final wishlistList = _wishlist.map((book) {
+      return jsonEncode(book.toJson());
+    }).toList();
+
     await prefs.setStringList('user_library', libraryList);
     await prefs.setStringList('user_wishlist', wishlistList);
   }
 
   Future<void> loadLibrary() async {
     final prefs = await SharedPreferences.getInstance();
-    
-    List<String>? libraryData = prefs.getStringList('user_library');
-    List<String>? wishlistData = prefs.getStringList('user_wishlist');
+
+    final libraryData = prefs.getStringList('user_library');
+    final wishlistData = prefs.getStringList('user_wishlist');
 
     if (libraryData != null) {
-      _savedBooks = libraryData.map((item) => Book.fromJson(jsonDecode(item))).toList();
+      _savedBooks = libraryData.map((item) {
+        return Book.fromJson(jsonDecode(item));
+      }).toList();
     }
-    
+
     if (wishlistData != null) {
-      _wishlist = wishlistData.map((item) => Book.fromJson(jsonDecode(item))).toList();
+      _wishlist = wishlistData.map((item) {
+        return Book.fromJson(jsonDecode(item));
+      }).toList();
     }
-    
+
     notifyListeners();
   }
 }
