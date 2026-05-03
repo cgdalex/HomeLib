@@ -142,13 +142,12 @@ During this project, we learned how to:
 - Resolve Git conflicts
 - Work as a team under time pressure
 - Make design decisions quickly
-- Explain a project clearly for judging
+- Explain a project to the judges
 
-Most importantly, we learned how to build, break, fix, and keep moving forward.
 
 ## Accomplishments We Are Proud Of
 
-We are proud that HomeLIB is a working project, not just a mockup.
+We are proud that HomeLIB is a working project.
 
 By the end of the hackathon, we built an app that can:
 
@@ -170,11 +169,10 @@ If we had another month, we would add:
 - Manual book entry for books not found in the Google Books API
 - Sorting by title, author, reading status, rating, or last read date
 - Better ordering for books in a series
-- User accounts and cloud sync
+- Cloud sync
 - Barcode scanning for physical books
 - Better AI-powered recommendations based on the user’s own ratings and notes
 - Tools to help users find where to buy or borrow physical and digital copies
-- Import and export support
 - Mobile improvements
 - Support for other types of media, like movies and TV shows
 
