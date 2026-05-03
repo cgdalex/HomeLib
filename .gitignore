@@ -48,3 +48,5 @@ app.*.map.json
 # API keys and other secrets
 # You should not commit secrets to version control.
 .env
+.env.*
+build/
