@@ -14,9 +14,8 @@ import '../services/book_api.dart';
 // This keeps your checkmark/save-between-refreshes system working.
 import '../providers/book_collection_provider.dart';
 
-// ADDED THIS:
-// Imports your buddy's LibraryProvider.
-// This lets the HomeScreen send books to the LibraryScreen.
+// Imports LibraryProvider.
+// This lets the HomeScreen send books to the LibraryScreen and Wish List.
 import '../providers/library_provider.dart';
 
 // HomeScreen is the main screen of the app.
@@ -101,11 +100,76 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // This adds a book to the main library / collection.
+  // It updates both providers so the search card checkmark and LibraryScreen
+  // stay in sync.
+  Future<void> _addBookToLibrary(Book book) async {
+    final collectionProvider = context.read<BookCollectionProvider>();
+    final libraryProvider = context.read<LibraryProvider>();
+
+    final alreadyAdded = collectionProvider.isBookAdded(book);
+
+    if (!alreadyAdded) {
+      await collectionProvider.addBook(book);
+      await libraryProvider.addBook(book);
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          alreadyAdded
+              ? '${book.title} is already in your library'
+              : 'Added ${book.title} to Library!',
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // This adds a book to the wish list.
+  // It uses the wishlist system inside LibraryProvider.
+  Future<void> _addBookToWishList(Book book) async {
+    final libraryProvider = context.read<LibraryProvider>();
+
+    final alreadyInWishList = libraryProvider.wishlist.any(
+      (savedBook) => savedBook.id == book.id,
+    );
+
+    final alreadyInLibrary = libraryProvider.savedBooks.any(
+      (savedBook) => savedBook.id == book.id,
+    );
+
+    if (!alreadyInWishList && !alreadyInLibrary) {
+      await libraryProvider.addToWishlist(
+        book.copyWith(status: 'Wish List'),
+      );
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          alreadyInWishList
+              ? '${book.title} is already in your wish list'
+              : alreadyInLibrary
+                  ? '${book.title} is already in your library'
+                  : 'Added ${book.title} to Wish List!',
+        ),
+        backgroundColor: Colors.blue,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   // This helper function builds one Plex-style book card.
   // It keeps the main build() method cleaner because the card UI is longer.
   Widget _buildBookCard(Book book, int index) {
     // Checks whether this specific card is the one currently being hovered.
-    // If true, we show the dark overlay and the small add button.
+    // If true, we show the dark overlay and the small action buttons.
     final bool isHovered = _hoveredIndex == index;
 
     // Reads our shared book collection provider.
@@ -113,13 +177,21 @@ class _HomeScreenState extends State<HomeScreen> {
     final bookCollection = context.watch<BookCollectionProvider>();
 
     // Checks if this specific book is already saved in our added books list.
-    // If true, the button will show a checkmark instead of a plus sign.
+    // If true, the library button will show a checkmark instead of a plus sign.
     final bool isAdded = bookCollection.isBookAdded(book);
 
-    // This controls when the button is visible.
-    // Before, the button only showed on hover.
-    // Now it shows if the card is hovered OR if the book is already added.
-    final bool shouldShowButton = isHovered || isAdded;
+    // Reads LibraryProvider so this card can know whether the book
+    // is already in the wish list.
+    final libraryProvider = context.watch<LibraryProvider>();
+
+    final bool isInWishList = libraryProvider.wishlist.any(
+      (savedBook) => savedBook.id == book.id,
+    );
+
+    // Buttons show on hover, but stay visible if the book is already
+    // in the library or wish list.
+    final bool shouldShowLibraryButton = isHovered || isAdded;
+    final bool shouldShowWishListButton = isHovered || isInWishList;
 
     // MouseRegion lets Flutter detect when the mouse enters or leaves a card.
     // This is what makes the hover effect work on web/desktop.
@@ -148,10 +220,12 @@ class _HomeScreenState extends State<HomeScreen> {
             // Stack lets us layer widgets on top of each other:
             // 1. book cover image
             // 2. dark hover overlay
-            // 3. add/check button in the bottom-right corner
+            // 3. transparent popup click layer
+            // 4. center "View Details" hover label
+            // 5. add-to-library button in the bottom-left corner
+            // 6. add-to-wish-list button in the bottom-right corner
             child: Stack(
               children: [
-                
                 // Positioned.fill makes the cover image fill the whole image area.
                 Positioned.fill(
                   child: ClipRRect(
@@ -194,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
                 // This is the dark overlay that appears on hover.
-                // It sits on top of the image but underneath the add/check button.
+                // It sits on top of the image but underneath the buttons.
                 Positioned.fill(
                   child: AnimatedOpacity(
                     // Controls how fast the dark overlay fades in and out.
@@ -202,7 +276,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     // If hovered, make the overlay visible.
                     // If not hovered, make it invisible.
-                    opacity: isHovered ? 0.35 : 0.0,
+                    opacity: isHovered ? 0.40 : 0.0,
 
                     child: Container(
                       decoration: BoxDecoration(
@@ -212,6 +286,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
+
+                // This transparent layer makes the book cover clickable.
+                // It opens the detail popup.
                 Positioned.fill(
                   child: Material(
                     color: Colors.transparent,
@@ -230,8 +307,99 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                // This positions the small add/check button in the bottom-right
-                // corner of the image, similar to the three-dot menu in Plex.
+                // Center hover label:
+                // This makes it clear that clicking the cover opens the detail popup.
+                // IgnorePointer lets clicks pass through to the transparent popup layer.
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 180),
+                      opacity: isHovered ? 1.0 : 0.0,
+                      child: Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 9,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.70),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.25),
+                            ),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.visibility_outlined,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                'View Details',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Bottom-left button:
+                // Adds the book to the main library / collection.
+                Positioned(
+                  left: 8,
+                  bottom: 8,
+                  child: AnimatedOpacity(
+                    // Makes the button fade in and out smoothly.
+                    duration: const Duration(milliseconds: 180),
+
+                    // Shows button while hovered.
+                    // Also keeps it visible if the book has already been added.
+                    opacity: shouldShowLibraryButton ? 1.0 : 0.0,
+
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () => _addBookToLibrary(book),
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: isAdded
+                                ? Colors.green.withOpacity(0.90)
+                                : Colors.amber.shade700.withOpacity(0.95),
+                            shape: BoxShape.circle,
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 6,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Icon(
+                            isAdded ? Icons.check : Icons.add,
+                            color: Colors.black,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Bottom-right button:
+                // Adds the book to the wish list.
                 Positioned(
                   right: 8,
                   bottom: 8,
@@ -240,72 +408,36 @@ class _HomeScreenState extends State<HomeScreen> {
                     duration: const Duration(milliseconds: 180),
 
                     // Shows button while hovered.
-                    // Also keeps it visible if the book has already been added.
-                    opacity: shouldShowButton ? 1.0 : 0.0,
+                    // Also keeps it visible if the book is already in the wish list.
+                    opacity: shouldShowWishListButton ? 1.0 : 0.0,
 
-                    // Material gives the button a proper circular background.
                     child: Material(
-                      // Green when already added, black when it can still be added.
-                      color: isAdded
-                          ? Colors.green.withOpacity(0.85)
-                          : Colors.black.withOpacity(0.75),
-                      shape: const CircleBorder(),
-
-                      // InkWell makes the circular button clickable.
+                      color: Colors.transparent,
                       child: InkWell(
                         customBorder: const CircleBorder(),
-
-                        // Saves the book into both providers:
-                        // 1. BookCollectionProvider keeps your checkmark behavior working.
-                        // 2. LibraryProvider sends the book to your buddy's LibraryScreen.
-                        onTap: () async {
-                          // Check if the book was already added BEFORE trying to add it.
-                          final alreadyAdded = context
-                              .read<BookCollectionProvider>()
-                              .isBookAdded(book);
-
-                          // Add the book only if it is not already in the collection.
-                          if (!alreadyAdded) {
-                            // This keeps your current add/checkmark system working.
-                            await context
-                                .read<BookCollectionProvider>()
-                                .addBook(book);
-
-                            // ADDED THIS FROM YOUR BUDDY'S CHANGE:
-                            // This sends the same book to LibraryProvider
-                            // so your buddy's LibraryScreen can display it.
-                            await context.read<LibraryProvider>().addBook(book);
-                          }
-
-                          // Force the card to rebuild so the plus icon updates to a checkmark.
-                          setState(() {});
-
-                          if (!mounted) return;
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                alreadyAdded
-                                    ? '${book.title} is already added'
-                                    : 'Added ${book.title} to Library!',
+                        onTap: () => _addBookToWishList(book),
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: isInWishList
+                                ? Colors.lightBlue.shade800.withOpacity(0.95)
+                                : Colors.blue.shade600.withOpacity(0.95),
+                            shape: BoxShape.circle,
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 6,
+                                offset: Offset(0, 2),
                               ),
-                              backgroundColor: Colors.green,
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
-                        },
-
-                        // Padding controls the size of the circular button.
-                        // This cannot be const because the icon changes dynamically.
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-
-                          // Shows a checkmark if the book is already saved.
-                          // Otherwise, shows the plus icon.
+                            ],
+                          ),
                           child: Icon(
-                            isAdded ? Icons.check : Icons.add,
+                            isInWishList
+                                ? Icons.bookmark
+                                : Icons.bookmark_add_outlined,
                             color: Colors.white,
-                            size: 18,
+                            size: 22,
                           ),
                         ),
                       ),
