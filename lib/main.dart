@@ -7,7 +7,7 @@ import 'providers/book_collection_provider.dart';
 
 // If your buddy needs their provider too, they can uncomment this import
 // after confirming the class name inside library_provider.dart.
-// import 'providers/library_provider.dart';
+import 'providers/library_provider.dart';
 
 Future<void> main() async {
   // Makes sure Flutter is ready before loading the .env file.
@@ -27,26 +27,17 @@ Future<void> main() async {
     // This is useful because you have your book collection provider,
     // and your buddy may also have their own library provider.
     MultiProvider(
-      providers: [
-        // This provider stores the books added from the search screen.
-        ChangeNotifierProvider(
-          create: (context) => BookCollectionProvider(),
-        ),
-
-        // Your buddy can add their provider right here.
-        // Example:
-        //
-        // ChangeNotifierProvider(
-        //   create: (context) => LibraryProvider(),
-        // ),
-        //
-        // They also need to uncomment the import near the top:
-        // import 'providers/library_provider.dart';
-      ],
-
-      // The actual app starts here after the providers are created.
-      child: const HomeLibApp(),
+  providers: [
+    ChangeNotifierProvider(
+      create: (context) => BookCollectionProvider(),
     ),
+    // ADD THIS LINE so LibraryScreen doesn't crash
+    ChangeNotifierProvider(
+      create: (context) => LibraryProvider(),
+    ),
+  ],
+  child: const HomeLibApp(),
+),
   );
 }
 
