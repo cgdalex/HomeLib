@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'book_detail_dialog.dart';
 
 // Imports the Book model so this screen knows what a Book object looks like.
 // The Book class stores information like title, author, and cover image URL.
@@ -150,6 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // 3. add/check button in the bottom-right corner
             child: Stack(
               children: [
+                
                 // Positioned.fill makes the cover image fill the whole image area.
                 Positioned.fill(
                   child: ClipRRect(
@@ -207,6 +209,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: Colors.black,
                         borderRadius: BorderRadius.circular(10),
                       ),
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          barrierColor: Colors.black.withOpacity(0.75),
+                          builder: (context) {
+                            return BookDetailDialog(book: book);
+                          },
+                        );
+                      },
                     ),
                   ),
                 ),
