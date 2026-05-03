@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../models/book.dart';
+import '../services/book_api.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -10,8 +12,31 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
 
-  void _searchBooks() {
-    print('Searching for: ${_searchController.text}');
+  List<Book> _books = [];
+  bool _isLoading = false;
+  String _errorMessage = '';
+
+  Future<void> _searchBooks() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      final results = await fetchBooks(_searchController.text);
+
+      setState(() {
+        _books = results;
+      });
+    } catch (error) {
+      setState(() {
+        _errorMessage = 'Failed to search books. Try again.';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -44,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 8),
             ElevatedButton(
               onPressed: _searchBooks,
-              child: const Text('Search'),
+              child: Text(_isLoading ? 'Loading...' : 'Search'),
             ),
           ],
         ),
