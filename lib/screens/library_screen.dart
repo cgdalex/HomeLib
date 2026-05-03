@@ -7,12 +7,25 @@ import '../providers/library_provider.dart';
 
 // LibraryScreen shows the user's saved library and wish list.
 // This version uses the same dark Plex-style theme as the popup and HomeScreen.
-class LibraryScreen extends StatelessWidget {
+class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
+
+  @override
+  State<LibraryScreen> createState() => _LibraryScreenState();
+}
+
+class _LibraryScreenState extends State<LibraryScreen> {
+  String _selectedLibraryStatus = 'All';
 
   @override
   Widget build(BuildContext context) {
     final library = context.watch<LibraryProvider>();
+
+    final filteredLibraryBooks = _selectedLibraryStatus == 'All'
+        ? library.savedBooks
+        : library.savedBooks.where((book) {
+            return book.status == _selectedLibraryStatus;
+          }).toList();
 
     return DefaultTabController(
       length: 2,
@@ -50,13 +63,26 @@ class LibraryScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            _buildBookList(
-              context: context,
-              books: library.savedBooks,
-              emptyIcon: Icons.library_books_outlined,
-              emptyTitle: 'Your library is empty',
-              emptySubtitle: 'Search for books and add them to your library.',
-              isWishlist: false,
+            Column(
+              children: [
+                _buildStatusFilterBar(
+                  allBooks: library.savedBooks,
+                ),
+                Expanded(
+                  child: _buildBookList(
+                    context: context,
+                    books: filteredLibraryBooks,
+                    emptyIcon: Icons.library_books_outlined,
+                    emptyTitle: _selectedLibraryStatus == 'All'
+                        ? 'Your library is empty'
+                        : 'No $_selectedLibraryStatus books',
+                    emptySubtitle: _selectedLibraryStatus == 'All'
+                        ? 'Search for books and add them to your library.'
+                        : 'Try choosing a different reading status filter.',
+                    isWishlist: false,
+                  ),
+                ),
+              ],
             ),
             _buildBookList(
               context: context,
@@ -67,6 +93,107 @@ class LibraryScreen extends StatelessWidget {
               isWishlist: true,
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // Builds the filter bar shown above the main Library tab.
+  Widget _buildStatusFilterBar({
+    required List<Book> allBooks,
+  }) {
+    final statuses = [
+      'All',
+      'Want to Read',
+      'Reading',
+      'Completed',
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 4),
+      decoration: const BoxDecoration(
+        color: Color(0xFF101010),
+        border: Border(
+          bottom: BorderSide(
+            color: Color(0xFF242424),
+          ),
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: statuses.map((status) {
+            final isSelected = _selectedLibraryStatus == status;
+            final count = status == 'All'
+                ? allBooks.length
+                : allBooks.where((book) => book.status == status).length;
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: () {
+                  setState(() {
+                    _selectedLibraryStatus = status;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Colors.amber.shade700
+                        : Colors.amber.shade700.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: isSelected
+                          ? Colors.amber.shade700
+                          : Colors.amber.shade700.withOpacity(0.45),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        status,
+                        style: TextStyle(
+                          color: isSelected ? Colors.black : Colors.amber.shade700,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.black.withOpacity(0.16)
+                              : Colors.amber.shade700.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          count.toString(),
+                          style: TextStyle(
+                            color: isSelected
+                                ? Colors.black
+                                : Colors.amber.shade700,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
         ),
       ),
     );
@@ -304,13 +431,13 @@ class LibraryScreen extends StatelessWidget {
     return SizedBox(
       width: 52,
       child: Center(
-          child: IconButton(
-            tooltip: 'Remove',
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.red.shade900.withOpacity(0.35),
-              foregroundColor: Colors.red.shade200,
-              minimumSize: const Size(44, 44),
-            ),
+        child: IconButton(
+          tooltip: 'Remove',
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.red.shade900.withOpacity(0.35),
+            foregroundColor: Colors.red.shade200,
+            minimumSize: const Size(44, 44),
+          ),
           onPressed: () async {
             await library.removeBook(book);
 
@@ -329,7 +456,7 @@ class LibraryScreen extends StatelessWidget {
           },
           icon: const Icon(Icons.delete_outline),
         ),
-      )
+      ),
     );
   }
 
