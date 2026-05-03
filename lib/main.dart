@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
-import 'screens/library_screen.dart';
-import 'screens/home_screen.dart';
-import 'providers/book_collection_provider.dart';
 
-// If your buddy needs their provider too, they can uncomment this import
-// after confirming the class name inside library_provider.dart.
+import 'screens/home_screen.dart';
+import 'screens/library_screen.dart';
+import 'providers/book_collection_provider.dart';
 import 'providers/library_provider.dart';
 
 Future<void> main() async {
@@ -23,21 +21,30 @@ Future<void> main() async {
   }
 
   runApp(
-    // MultiProvider lets the app use more than one provider.
-    // This is useful because you have your book collection provider,
-    // and your buddy may also have their own library provider.
+    // MultiProvider lets the app use more than one provider at the same time.
+    // This is important because we want to use our provider without changing
+    // your buddy's library_provider.dart file.
     MultiProvider(
-  providers: [
-    ChangeNotifierProvider(
-      create: (context) => BookCollectionProvider(),
+      providers: [
+        // ADDED/KEEP THIS:
+        // This is our provider for books added from the search screen.
+        // This provider will handle saving added books between refreshes.
+        ChangeNotifierProvider(
+          create: (context) => BookCollectionProvider(),
+        ),
+
+        // KEEP THIS:
+        // This is your buddy's provider.
+        // We are including it so their screen can still use it,
+        // but we are not editing their library_provider.dart file.
+        ChangeNotifierProvider(
+          create: (context) => LibraryProvider(),
+        ),
+      ],
+
+      // The actual app starts here after both providers are created.
+      child: const HomeLibApp(),
     ),
-    // ADD THIS LINE so LibraryScreen doesn't crash
-    ChangeNotifierProvider(
-      create: (context) => LibraryProvider(),
-    ),
-  ],
-  child: const HomeLibApp(),
-),
   );
 }
 
@@ -53,13 +60,14 @@ class HomeLibApp extends StatelessWidget {
         colorSchemeSeed: Colors.indigo,
         useMaterial3: true,
       ),
-      // 5. Change home to our new Navigation Wrapper
+
+      // Starts the app on the navigation wrapper.
       home: const MainNavigation(),
     );
   }
 }
 
-// 6. This widget handles the switching between Search and Library
+// This widget handles switching between the Search screen and Library screen.
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
 
@@ -68,30 +76,42 @@ class MainNavigation extends StatefulWidget {
 }
 
 class _MainNavigationState extends State<MainNavigation> {
+  // Tracks which page is currently selected.
+  // 0 = Search page
+  // 1 = My Library page
   int _selectedIndex = 0;
 
+  // These are the screens that the sidebar switches between.
+  // The order must match the NavigationRail destinations below.
   final List<Widget> _pages = [
     const HomeScreen(),
-    LibraryScreen(), // Removed const as discussed
+    LibraryScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // We use a Row to put the Nav and the Content side-by-side
+      // Row places the sidebar navigation and main content side by side.
       body: Row(
         children: [
-          // 1. The Sidebar
+          // Sidebar navigation.
           NavigationRail(
             selectedIndex: _selectedIndex,
+
+            // Runs when the user clicks Search or My Library.
             onDestinationSelected: (int index) {
               setState(() {
                 _selectedIndex = index;
               });
             },
-            labelType: NavigationRailLabelType.all, // Shows text under icons
+
+            // Shows text labels for each destination.
+            labelType: NavigationRailLabelType.all,
+
+            // Light indigo styling to match the app theme.
             backgroundColor: Colors.indigo.withOpacity(0.05),
             indicatorColor: Colors.indigo.withOpacity(0.2),
+
             destinations: const [
               NavigationRailDestination(
                 icon: Icon(Icons.search_outlined),
@@ -105,11 +125,12 @@ class _MainNavigationState extends State<MainNavigation> {
               ),
             ],
           ),
-          
-          // A vertical line to separate the nav from the content
+
+          // Vertical divider between sidebar and screen content.
           const VerticalDivider(thickness: 1, width: 1),
 
-          // 2. The Main Content
+          // Main screen area.
+          // IndexedStack keeps both screens alive when switching tabs.
           Expanded(
             child: IndexedStack(
               index: _selectedIndex,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 // Imports the Book model so this screen knows what a Book object looks like.
 // The Book class stores information like title, author, and cover image URL.
@@ -8,6 +9,10 @@ import '../models/book.dart';
 // fetchBooks() is what actually searches for books online.
 import '../services/book_api.dart';
 
+// Imports our separate provider for books added from the search screen.
+// This does not touch your buddy's library_provider.dart file.
+import '../providers/book_collection_provider.dart';
+
 // HomeScreen is the main screen of the app.
 // It is StatefulWidget because the screen changes while the user uses it:
 // - the search text changes
@@ -15,6 +20,7 @@ import '../services/book_api.dart';
 // - error messages may appear
 // - book results update after a search
 // - hover state changes when the mouse moves over a book card
+// - added books need to update from plus icons to check icons
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -96,6 +102,19 @@ class _HomeScreenState extends State<HomeScreen> {
     // If true, we show the dark overlay and the small add button.
     final bool isHovered = _hoveredIndex == index;
 
+    // Reads our shared book collection provider.
+    // This lets the card know if this book has already been added.
+    final bookCollection = context.watch<BookCollectionProvider>();
+
+    // Checks if this specific book is already saved in our added books list.
+    // If true, the button will show a checkmark instead of a plus sign.
+    final bool isAdded = bookCollection.isBookAdded(book);
+
+    // This controls when the button is visible.
+    // Before, the button only showed on hover.
+    // Now it shows if the card is hovered OR if the book is already added.
+    final bool shouldShowButton = isHovered || isAdded;
+
     // MouseRegion lets Flutter detect when the mouse enters or leaves a card.
     // This is what makes the hover effect work on web/desktop.
     return MouseRegion(
@@ -123,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
             // Stack lets us layer widgets on top of each other:
             // 1. book cover image
             // 2. dark hover overlay
-            // 3. add button in the bottom-right corner
+            // 3. add/check button in the bottom-right corner
             child: Stack(
               children: [
                 // Positioned.fill makes the cover image fill the whole image area.
@@ -144,7 +163,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
                             // This helps Flutter web load Google Books images
                             // by asking Flutter to use a normal browser image element when possible.
-                            webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
+                            webHtmlElementStrategy:
+                                WebHtmlElementStrategy.prefer,
 
                             // If the image fails to load, show a clean fallback
                             // instead of Flutter's ugly red error box.
@@ -167,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
                 // This is the dark overlay that appears on hover.
-                // It sits on top of the image but underneath the add button.
+                // It sits on top of the image but underneath the add/check button.
                 Positioned.fill(
                   child: AnimatedOpacity(
                     // Controls how fast the dark overlay fades in and out.
@@ -186,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
 
-                // This positions the small add button in the bottom-right
+                // This positions the small add/check button in the bottom-right
                 // corner of the image, similar to the three-dot menu in Plex.
                 Positioned(
                   right: 8,
@@ -195,35 +215,61 @@ class _HomeScreenState extends State<HomeScreen> {
                     // Makes the button fade in and out smoothly.
                     duration: const Duration(milliseconds: 180),
 
-                    // Only show the button while the card is hovered.
-                    opacity: isHovered ? 1.0 : 0.0,
+                    // Shows button while hovered.
+                    // Also keeps it visible if the book has already been added.
+                    opacity: shouldShowButton ? 1.0 : 0.0,
 
                     // Material gives the button a proper circular background.
                     child: Material(
-                      color: Colors.black.withOpacity(0.75),
+                      // Green when already added, black when it can still be added.
+                      color: isAdded
+                          ? Colors.green.withOpacity(0.85)
+                          : Colors.black.withOpacity(0.75),
                       shape: const CircleBorder(),
 
                       // InkWell makes the circular button clickable.
                       child: InkWell(
                         customBorder: const CircleBorder(),
 
-                        // Right now this just confirms that the book was selected.
-                        // Later, we will change this to add the book to My Library.
-                        onTap: () {
+                        // Saves the book into BookCollectionProvider.
+                        // BookCollectionProvider can save the book between refreshes
+                        // using shared_preferences.
+                        onTap: () async {
+                          // Check if the book was already added BEFORE trying to add it.
+                          final alreadyAdded = context
+                              .read<BookCollectionProvider>()
+                              .isBookAdded(book);
+
+                          // Add the book only if it is not already in the collection.
+                          if (!alreadyAdded) {
+                            await context.read<BookCollectionProvider>().addBook(book);
+                          }
+
+                          // Force the card to rebuild so the plus icon updates to a checkmark.
+                          setState(() {});
+
+                          if (!mounted) return;
+
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('${book.title} selected'),
+                              content: Text(
+                                alreadyAdded
+                                    ? '${book.title} is already added'
+                                    : '${book.title} added',
+                              ),
                             ),
                           );
                         },
 
                         // Padding controls the size of the circular button.
-                        child: const Padding(
-                          padding: EdgeInsets.all(8),
+                        // This cannot be const because the icon changes dynamically.
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
 
-                          // Plus icon shown inside the circular button.
+                          // Shows a checkmark if the book is already saved.
+                          // Otherwise, shows the plus icon.
                           child: Icon(
-                            Icons.add,
+                            isAdded ? Icons.check : Icons.add,
                             color: Colors.white,
                             size: 18,
                           ),
