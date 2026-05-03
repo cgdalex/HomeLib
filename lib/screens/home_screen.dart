@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/library_provider.dart'; // Make sure this path is correct
 
 // Imports the Book model so this screen knows what a Book object looks like.
 // The Book class stores information like title, author, and cover image URL.
@@ -210,9 +212,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         // Right now this just confirms that the book was selected.
                         // Later, we will change this to add the book to My Library.
                         onTap: () {
+                          // This sends the book to your LibraryProvider
+                          Provider.of<LibraryProvider>(context, listen: false).addBook(book);
+
+                          // This gives the user feedback
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('${book.title} selected'),
+                              content: Text('Added ${book.title} to Library!'),
+                              backgroundColor: Colors.green, // Optional: green for success
+                              duration: const Duration(seconds: 2),
                             ),
                           );
                         },
