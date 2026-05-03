@@ -5,56 +5,104 @@ import '../models/book.dart';
 
 class LibraryProvider extends ChangeNotifier {
   List<Book> _savedBooks = [];
+  List<Book> _wishlist = [];
 
   List<Book> get savedBooks => _savedBooks;
+  List<Book> get wishlist => _wishlist;
 
   LibraryProvider() {
-    loadLibrary(); // Load books as soon as the app starts
+    loadLibrary();
   }
 
-  // Task #2: Add to Library
-  Future<void> addBook(Book book) async {
-    // Task #7: Duplicate Check
-    if (_savedBooks.any((b) => b.id == book.id)) return;
+  // --- COLLECTION METHODS ---
 
-    _savedBooks.add(book);
-    notifyListeners(); // This tells all screens to rebuild!
+  Future<void> addBook(Book book) async {
+  if (_savedBooks.any((b) => b.id == book.id)) {
+    return;
+  }
+  _savedBooks.add(book);
+  notifyListeners();
+  await _saveToDisk();
+  }
+
+  Future<void> removeBook(Book book) async {
+    _savedBooks.removeWhere((item) => item.id == book.id);
+    notifyListeners();
     await _saveToDisk();
   }
 
+  Future<void> updateBookStatus(Book book, String newStatus) async {
+    int index = _savedBooks.indexWhere((b) => b.id == book.id);
+    if (index != -1) {
+      _savedBooks[index] = _savedBooks[index].copyWith(status: newStatus);
+      notifyListeners();
+      await _saveToDisk();
+    }
+  }
+
+  // --- WISHLIST METHODS ---
+
+  Future<void> addToWishlist(Book book) async {
+  // 1. Check if it's already in the wishlist
+  bool alreadyInWishlist = _wishlist.any((b) => b.id == book.id);
+  
+  // 2. EXTRA UX CHECK: If it's already in the Library, maybe they don't need it in Wishlist?
+  bool alreadyInLibrary = _savedBooks.any((b) => b.id == book.id);
+
+  if (alreadyInWishlist || alreadyInLibrary) {
+    debugPrint("Duplicate prevented: ${book.title} already exists in a list.");
+    return;
+  }
+
+  _wishlist.add(book);
+  notifyListeners();
+  await _saveToDisk();
+  }
+
+  Future<void> removeFromWishlist(Book book) async {
+    _wishlist.removeWhere((item) => item.id == book.id);
+    notifyListeners();
+    await _saveToDisk();
+  }
+
+  Future<void> moveToLibrary(Book book) async {
+    // 1. Remove from wishlist
+    _wishlist.removeWhere((item) => item.id == book.id);
+    // 2. Add to library if not already there
+    if (!_savedBooks.any((b) => b.id == book.id)) {
+      _savedBooks.add(book);
+    }
+    notifyListeners();
+    await _saveToDisk();
+  }
+
+  // --- PERSISTENCE (Saving & Loading) ---
+
   Future<void> _saveToDisk() async {
     final prefs = await SharedPreferences.getInstance();
-    List<String> list = _savedBooks.map((b) => jsonEncode(b.toJson())).toList();
-    await prefs.setStringList('user_library', list);
+    
+    // Save both lists separately
+    List<String> libraryList = _savedBooks.map((b) => jsonEncode(b.toJson())).toList();
+    List<String> wishlistList = _wishlist.map((b) => jsonEncode(b.toJson())).toList();
+    
+    await prefs.setStringList('user_library', libraryList);
+    await prefs.setStringList('user_wishlist', wishlistList);
   }
 
   Future<void> loadLibrary() async {
     final prefs = await SharedPreferences.getInstance();
-    List<String>? list = prefs.getStringList('user_library');
-    if (list != null) {
-      _savedBooks = list.map((item) => Book.fromJson(jsonDecode(item))).toList();
-      notifyListeners();
-    }
-  }
-
-
-  Future<void> removeBook(Book book) async {
-  _savedBooks.removeWhere((item) => item.id == book.id);
-  await _saveToDisk(); // Don't forget to update SharedPreferences!
-  notifyListeners();
-}
-
-    // Update the reading status of a book
-    Future<void> updateBookStatus(Book book, String newStatus) async {
-    // Find the index of the book we want to update
-    int index = _savedBooks.indexWhere((b) => b.id == book.id);
     
-    if (index != -1) {
-      // Replace the old book with a copy that has the new status
-      _savedBooks[index] = _savedBooks[index].copyWith(status: newStatus);
-      
-      notifyListeners(); // Refresh the UI
-      await _saveToDisk();     // Save the change to the browser storage
+    List<String>? libraryData = prefs.getStringList('user_library');
+    List<String>? wishlistData = prefs.getStringList('user_wishlist');
+
+    if (libraryData != null) {
+      _savedBooks = libraryData.map((item) => Book.fromJson(jsonDecode(item))).toList();
     }
+    
+    if (wishlistData != null) {
+      _wishlist = wishlistData.map((item) => Book.fromJson(jsonDecode(item))).toList();
+    }
+    
+    notifyListeners();
   }
 }
