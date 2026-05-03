@@ -2,7 +2,10 @@
 
 ## Inspiration
 
-What inspired you to build this project?
+One of our members was asked to create a program that tracks the books that a person has read by a family member. We thought that this would be a good project for our first Hackathon. We researched technologies that attempt tocreate digitals lists recording the books a user has read and learned that they were all social media-based. They all focus on reviewing books, adding friends, competing in reading challenges, advertising books and products, and these apps end up neglecting the true purpose of storing the users' notes about the books they have read. We realized that these programs can alienate people, especially those who are older and not interested in social media.
+
+We realized that there is a genuine need to create a simple web app with an intuitive AI that allows users to take notes about the books they are reading and create a list of all of the books they have read, own, and wish to read in the future. This inspired us to create a web app that acts as a digital librarian that allows users, regardless of age or technical ability, to find new books and keep track of their reading. 
+
 
 ## What It Does
 
