@@ -3,26 +3,69 @@ import 'package:provider/provider.dart';
 import '../providers/library_provider.dart';
 
 class LibraryScreen extends StatelessWidget {
+  const LibraryScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
-    // Access the provider
     final library = Provider.of<LibraryProvider>(context);
 
-    return Scaffold(
-      appBar: AppBar(title: Text("My HomeLib")),
-      body: library.savedBooks.isEmpty
-          ? Center(child: Text("Your library is empty. Go find some books!"))
-          : ListView.builder(
-              itemCount: library.savedBooks.length,
-              itemBuilder: (context, index) {
-                final book = library.savedBooks[index];
-                return ListTile(
-                  leading: Image.network(book.thumbnailUrl),
-                  title: Text(book.title),
-                  subtitle: Text(book.authors),
-                );
-              },
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.all(24.0),
+          child: Text(
+            "My HomeLib",
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+          ),
+        ),
+        Expanded(
+          child: library.savedBooks.isEmpty
+              ? const Center(
+                  child: Text(
+                    "Your library is empty. Go find some books!",
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: library.savedBooks.length,
+                  itemBuilder: (context, index) {
+                    final book = library.savedBooks[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        leading: book.thumbnailUrl.isNotEmpty
+                            ? Image.network(
+                                book.thumbnailUrl,
+                                width: 50,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => 
+                                  const Icon(Icons.book),
+                              )
+                            : const Icon(Icons.book),
+                        title: Text(book.title),
+                        subtitle: Text(book.authors),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                          onPressed: () async {
+                            // 1. Await the removal
+                            await library.removeBook(book); 
+                            
+                            // 2. Check if the screen is still active before showing SnackBar
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Removed ${book.title}')),
+                              );
+                            }
+                          }, // This } and ) match the onPressed and IconButton
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
