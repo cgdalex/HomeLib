@@ -15,11 +15,15 @@ class Book {
   // Cover image URL from Google Books.
   final String thumbnailUrl;
 
+  // Reading status
+  final String status;
+
   Book({
     required this.id,
     required this.title,
     required this.authors,
     required this.thumbnailUrl,
+    this.status = 'Want to Read',
   });
 
   // Creates a Book object from JSON.
@@ -52,6 +56,7 @@ class Book {
             .toString()
             .replaceFirst('http://', 'https://')
             .replaceAll('&edge=curl', ''),
+          status: json['status'] ?? 'Want to Read',
       );
     }
 
@@ -71,9 +76,21 @@ class Book {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'status': status,
       'title': title,
       'authors': authors,
       'thumbnailUrl': thumbnailUrl,
     };
+  }
+
+  //copyWith method (Helper to update status easily)
+  Book copyWith({String? status}) {
+    return Book(
+      id: id,
+      title: title,
+      authors: authors,
+      thumbnailUrl: thumbnailUrl,
+      status: status ?? this.status,
+    );
   }
 }

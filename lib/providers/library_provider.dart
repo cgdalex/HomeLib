@@ -43,4 +43,18 @@ class LibraryProvider extends ChangeNotifier {
   await _saveToDisk(); // Don't forget to update SharedPreferences!
   notifyListeners();
 }
+
+    // Update the reading status of a book
+    Future<void> updateBookStatus(Book book, String newStatus) async {
+    // Find the index of the book we want to update
+    int index = _savedBooks.indexWhere((b) => b.id == book.id);
+    
+    if (index != -1) {
+      // Replace the old book with a copy that has the new status
+      _savedBooks[index] = _savedBooks[index].copyWith(status: newStatus);
+      
+      notifyListeners(); // Refresh the UI
+      await _saveToDisk();     // Save the change to the browser storage
+    }
+  }
 }

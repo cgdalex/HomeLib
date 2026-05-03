@@ -40,25 +40,64 @@ class LibraryScreen extends StatelessWidget {
                                 book.thumbnailUrl,
                                 width: 50,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => 
-                                  const Icon(Icons.book),
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(Icons.book),
                               )
                             : const Icon(Icons.book),
                         title: Text(book.title),
-                        subtitle: Text(book.authors),
+                        // Merged: Subtitle now contains Authors + Status Dropdown
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(book.authors),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.indigo.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: DropdownButton<String>(
+                                value: book.status,
+                                isDense: true,
+                                underline: const SizedBox(), // Hides default line
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.indigo,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                items: <String>[
+                                  'Want to Read',
+                                  'Reading',
+                                  'Completed'
+                                ].map((String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  );
+                                }).toList(),
+                                onChanged: (String? newStatus) {
+                                  if (newStatus != null) {
+                                    library.updateBookStatus(book, newStatus);
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
                         trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                          icon: const Icon(Icons.delete_outline,
+                              color: Colors.redAccent),
                           onPressed: () async {
-                            // 1. Await the removal
-                            await library.removeBook(book); 
-                            
-                            // 2. Check if the screen is still active before showing SnackBar
+                            await library.removeBook(book);
+
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Removed ${book.title}')),
+                                SnackBar(
+                                    content: Text('Removed ${book.title}')),
                               );
                             }
-                          }, // This } and ) match the onPressed and IconButton
+                          },
                         ),
                       ),
                     );
