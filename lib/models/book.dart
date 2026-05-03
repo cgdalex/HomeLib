@@ -67,6 +67,7 @@ class Book {
       title: json['title'] ?? 'No Title',
       authors: json['authors'] ?? 'Unknown Author',
       thumbnailUrl: json['thumbnailUrl'] ?? '',
+      status: json['status'] ?? 'Want to Read',
     );
   }
 
