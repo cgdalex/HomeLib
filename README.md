@@ -2,36 +2,28 @@
 
 ## Inspiration
 
-This project is a starting point for a Flutter application.
+What inspired you to build this project?
 
 ## What It Does
 
-Stuff
+Describe the main features and how someone would use it.
 
 ## How We Built It
 
-More Stuff
+Share the tools, APIs, frameworks, and design decisions behind your project.
 
-## Challenges We Ran Into 
+## Challenges We Ran Into
 
-Even More Stuff
+What was difficult, surprising, or especially interesting to solve?
 
-## Accomplishments We Are Proud Of
+## Accomplishments That We Are Proud Of
 
-Stuff
+What are you most excited about?
 
-## What We Learned 
+## What We Learned
 
-Stuff
+What did your team learn while building this?
 
-## What Is Next For HomeLib?
+## What Is Next For HomeLib
 
-Stuff
-
-## Built With
-
-Add Boxes Here
-
-## Try It Out
-
-Link to our Website
+Where would you take this project after the hackathon?
