@@ -32,11 +32,11 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Create env file
-        run: echo "GOOGLE_BOOKS_API_KEY=${{ secrets.GOOGLE_BOOKS_API_KEY }}" > .env
-
       - name: Build Flutter web
-        run: flutter build web --release --base-href /HomeLib/
+        run: |
+          flutter build web --release --base-href /HomeLib/ \
+            --dart-define=GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }} \
+            --dart-define=GOOGLE_BOOKS_API_KEY=${{ secrets.GOOGLE_BOOKS_API_KEY }}
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3

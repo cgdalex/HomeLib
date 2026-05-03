@@ -5,8 +5,6 @@ import '../models/book.dart';
 import '../providers/book_collection_provider.dart';
 import '../providers/library_provider.dart';
 
-// LibraryScreen shows the user's saved library and wish list.
-// This version uses the same dark Plex-style theme as the popup and HomeScreen.
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
 
@@ -35,13 +33,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           backgroundColor: const Color(0xFF101010),
           foregroundColor: Colors.white,
           elevation: 0,
-          title: const Text(
-            'My HomeLIB',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 26,
-            ),
-          ),
+          toolbarHeight: 0,
           bottom: TabBar(
             indicatorColor: Colors.amber.shade700,
             labelColor: Colors.amber.shade700,
@@ -98,7 +90,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Builds the filter bar shown above the main Library tab.
   Widget _buildStatusFilterBar({
     required List<Book> allBooks,
   }) {
@@ -160,7 +151,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       Text(
                         status,
                         style: TextStyle(
-                          color: isSelected ? Colors.black : Colors.amber.shade700,
+                          color:
+                              isSelected ? Colors.black : Colors.amber.shade700,
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
                         ),
@@ -199,7 +191,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Builds either the library list or the wishlist list.
   Widget _buildBookList({
     required BuildContext context,
     required List<Book> books,
@@ -231,7 +222,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Builds one dark Plex-style row for a saved book.
   Widget _buildBookRow({
     required BuildContext context,
     required Book book,
@@ -277,7 +267,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Builds the title, author, status, ownership, rating, and notes section.
   Widget _buildBookInfo({
     required BuildContext context,
     required Book book,
@@ -358,7 +347,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Builds the action buttons on the right side of each row.
   Widget _buildActionButtons({
     required BuildContext context,
     required Book book,
@@ -385,7 +373,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
                 if (!context.mounted) return;
 
-                // Keep the search-page checkmark in sync.
                 await collection.addBook(
                   book.copyWith(status: 'Want to Read'),
                 );
@@ -440,9 +427,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ),
           onPressed: () async {
             await library.removeBook(book);
-
-            // Important:
-            // This makes the search card return from checkmark to plus.
             await collection.removeBook(book);
 
             if (!context.mounted) return;
@@ -460,7 +444,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Builds the cover image for a library row.
   Widget _buildBookCover(Book book) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
@@ -479,7 +462,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Fallback image for missing covers.
   Widget _buildCoverFallback() {
     return Container(
       width: 74,
@@ -492,7 +474,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Builds the status dropdown for normal library books.
   Widget _buildStatusDropdown({
     required BuildContext context,
     required Book book,
@@ -542,7 +523,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Builds one pill-shaped button that toggles between Physical and Digital.
   Widget _buildOwnershipButton({
     required BuildContext context,
     required Book book,
@@ -603,7 +583,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Builds a small metadata pill.
   Widget _buildChip({
     required IconData icon,
     required String text,
@@ -640,7 +619,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  // Empty state used when the library or wishlist has no books.
   Widget _buildEmptyState({
     required IconData icon,
     required String title,

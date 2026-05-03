@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'screens/home_screen.dart';
 import 'screens/library_screen.dart';
+import 'screens/recommendations_screen.dart';
 import 'providers/book_collection_provider.dart';
 import 'providers/library_provider.dart';
 
@@ -77,7 +78,7 @@ class HomeLibApp extends StatelessWidget {
   }
 }
 
-// This widget handles switching between the Search screen and Library screen.
+// This widget handles switching between the Search, Library, and AI Picks screens.
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
 
@@ -89,12 +90,14 @@ class _MainNavigationState extends State<MainNavigation> {
   // Tracks which page is currently selected.
   // 0 = Search page
   // 1 = My Library page
+  // 2 = AI Picks page
   int _selectedIndex = 0;
 
   // These are the screens that the sidebar switches between.
-  final List<Widget> _pages = [
-    const HomeScreen(),
-    const LibraryScreen(),
+  final List<Widget> _pages = const [
+    HomeScreen(),
+    LibraryScreen(),
+    RecommendationsScreen(),
   ];
 
   @override
@@ -109,17 +112,15 @@ class _MainNavigationState extends State<MainNavigation> {
           NavigationRail(
             selectedIndex: _selectedIndex,
 
-            // Runs when the user clicks Search or My Library.
+            // Runs when the user clicks Search, My Library, or AI Picks.
             onDestinationSelected: (int index) {
               setState(() {
                 _selectedIndex = index;
               });
             },
-
             labelType: NavigationRailLabelType.all,
             backgroundColor: const Color(0xFF181818),
             indicatorColor: Colors.amber.shade700.withOpacity(0.18),
-
             selectedIconTheme: IconThemeData(
               color: Colors.amber.shade700,
             ),
@@ -134,7 +135,6 @@ class _MainNavigationState extends State<MainNavigation> {
               color: Colors.grey.shade500,
               fontWeight: FontWeight.w500,
             ),
-
             destinations: const [
               NavigationRailDestination(
                 icon: Icon(Icons.search_outlined),
@@ -145,6 +145,11 @@ class _MainNavigationState extends State<MainNavigation> {
                 icon: Icon(Icons.library_books_outlined),
                 selectedIcon: Icon(Icons.library_books),
                 label: Text('My Library'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.auto_awesome_outlined),
+                selectedIcon: Icon(Icons.auto_awesome),
+                label: Text('AI Picks'),
               ),
             ],
           ),
@@ -157,7 +162,7 @@ class _MainNavigationState extends State<MainNavigation> {
           ),
 
           // Main screen area.
-          // IndexedStack keeps both screens alive when switching tabs.
+          // IndexedStack keeps screens alive when switching tabs.
           Expanded(
             child: IndexedStack(
               index: _selectedIndex,
