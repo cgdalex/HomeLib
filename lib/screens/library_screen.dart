@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/library_provider.dart';
+import '../providers/book_collection_provider.dart';
 
 class LibraryScreen extends StatelessWidget {
   const LibraryScreen({super.key});
@@ -89,7 +90,8 @@ class LibraryScreen extends StatelessWidget {
                           icon: const Icon(Icons.delete_outline,
                               color: Colors.redAccent),
                           onPressed: () async {
-                            await library.removeBook(book);
+                            await context.read<LibraryProvider>().removeBook(book);
+                            context.read<BookCollectionProvider>().removeBook(book);
 
                             if (context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
