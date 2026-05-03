@@ -19,6 +19,9 @@ class Book {
   // Want to Read, Reading, Finished, or Wish List.
   final String status;
 
+  // Shows whether the user owns the book physically or digitally.
+  final String ownershipType;
+
   // The user's personal star rating for this book.
   // 0 means the user has not rated it yet.
   final double personalRating;
@@ -32,6 +35,7 @@ class Book {
     required this.authors,
     required this.thumbnailUrl,
     this.status = 'Want to Read',
+    this.ownershipType = 'Physical',
     this.personalRating = 0,
     this.notes = '',
   });
@@ -70,6 +74,9 @@ class Book {
         // New books from the API start as Want to Read by default.
         status: json['status'] ?? 'Want to Read',
 
+        // New books start as physical by default.
+        ownershipType: json['ownershipType'] ?? 'Physical',
+
         // API results do not have the user's personal rating/notes yet.
         personalRating: 0,
         notes: '',
@@ -84,6 +91,7 @@ class Book {
       authors: json['authors'] ?? 'Unknown Author',
       thumbnailUrl: json['thumbnailUrl'] ?? '',
       status: json['status'] ?? 'Want to Read',
+      ownershipType: json['ownershipType'] ?? 'Physical',
       personalRating: _parseDouble(json['personalRating']),
       notes: json['notes'] ?? '',
     );
@@ -91,10 +99,11 @@ class Book {
 
   // Converts a Book object into simple JSON.
   // This is used when saving books locally with shared_preferences.
-  Map<String, dynamic> toJson() {
+  Map toJson() {
     return {
       'id': id,
       'status': status,
+      'ownershipType': ownershipType,
       'title': title,
       'authors': authors,
       'thumbnailUrl': thumbnailUrl,
@@ -106,6 +115,7 @@ class Book {
   // Helper to update only some fields without rebuilding the whole book manually.
   Book copyWith({
     String? status,
+    String? ownershipType,
     double? personalRating,
     String? notes,
   }) {
@@ -115,6 +125,7 @@ class Book {
       authors: authors,
       thumbnailUrl: thumbnailUrl,
       status: status ?? this.status,
+      ownershipType: ownershipType ?? this.ownershipType,
       personalRating: personalRating ?? this.personalRating,
       notes: notes ?? this.notes,
     );

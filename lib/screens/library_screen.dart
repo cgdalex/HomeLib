@@ -110,9 +110,6 @@ class LibraryScreen extends StatelessWidget {
     required Book book,
     required bool isWishlist,
   }) {
-    final library = context.read<LibraryProvider>();
-    final collection = context.read<BookCollectionProvider>();
-
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
@@ -133,156 +130,206 @@ class LibraryScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildBookCover(book),
-
             const SizedBox(width: 16),
-
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    book.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  Text(
-                    book.authors,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.grey.shade400,
-                      fontSize: 14,
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      if (!isWishlist)
-                        _buildStatusDropdown(
-                          context: context,
-                          book: book,
-                        )
-                      else
-                        _buildChip(
-                          icon: Icons.bookmark,
-                          text: 'Wish List',
-                          color: Colors.blue.shade600,
-                        ),
-
-                      if (book.personalRating > 0)
-                        _buildChip(
-                          icon: Icons.star,
-                          text:
-                              '${book.personalRating.toStringAsFixed(0)} / 5',
-                          color: Colors.amber.shade700,
-                        ),
-
-                      if (book.notes.trim().isNotEmpty)
-                        _buildChip(
-                          icon: Icons.note_alt_outlined,
-                          text: 'Has notes',
-                          color: Colors.deepPurple.shade400,
-                        ),
-                    ],
-                  ),
-
-                  if (book.notes.trim().isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      book.notes,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.grey.shade300,
-                        fontSize: 13,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ],
+              child: _buildBookInfo(
+                context: context,
+                book: book,
+                isWishlist: isWishlist,
               ),
             ),
-
-            const SizedBox(width: 12),
-
-            Column(
-              children: [
-                if (isWishlist)
-                  IconButton(
-                    tooltip: 'Move to Library',
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.amber.shade700,
-                      foregroundColor: Colors.black,
-                    ),
-                    onPressed: () async {
-                      await library.moveToLibrary(book);
-
-                      if (!context.mounted) return;
-
-                      // Keep the search-page checkmark in sync.
-                      await collection.addBook(
-                        book.copyWith(status: 'Want to Read'),
-                      );
-
-                      if (!context.mounted) return;
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Moved ${book.title} to Library'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.add),
-                  ),
-
-                const SizedBox(height: 8),
-
-                IconButton(
-                  tooltip: 'Remove',
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.red.shade900.withOpacity(0.35),
-                    foregroundColor: Colors.red.shade200,
-                  ),
-                  onPressed: () async {
-                    if (isWishlist) {
-                      await library.removeFromWishlist(book);
-                    } else {
-                      await library.removeBook(book);
-
-                      // Important:
-                      // This makes the search card return from checkmark to plus.
-                      await collection.removeBook(book);
-                    }
-
-                    if (!context.mounted) return;
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Removed ${book.title}'),
-                        backgroundColor: Colors.red.shade700,
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
+            const SizedBox(width: 16),
+            _buildActionButtons(
+              context: context,
+              book: book,
+              isWishlist: isWishlist,
             ),
           ],
         ),
       ),
+    );
+  }
+
+  // Builds the title, author, status, ownership, rating, and notes section.
+  Widget _buildBookInfo({
+    required BuildContext context,
+    required Book book,
+    required bool isWishlist,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          book.title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          book.authors,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: Colors.grey.shade400,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            if (!isWishlist)
+              _buildStatusDropdown(
+                context: context,
+                book: book,
+              )
+            else
+              _buildChip(
+                icon: Icons.bookmark,
+                text: 'Wish List',
+                color: Colors.blue.shade600,
+              ),
+            if (!isWishlist)
+              _buildOwnershipButton(
+                context: context,
+                book: book,
+              ),
+            if (book.personalRating > 0)
+              _buildChip(
+                icon: Icons.star,
+                text: '${book.personalRating.toStringAsFixed(0)} / 5',
+                color: Colors.amber.shade700,
+              ),
+            if (book.notes.trim().isNotEmpty)
+              _buildChip(
+                icon: Icons.note_alt_outlined,
+                text: 'Has notes',
+                color: Colors.deepPurple.shade400,
+              ),
+          ],
+        ),
+        if (book.notes.trim().isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            book.notes,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.grey.shade300,
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // Builds the action buttons on the right side of each row.
+  Widget _buildActionButtons({
+    required BuildContext context,
+    required Book book,
+    required bool isWishlist,
+  }) {
+    final library = context.read<LibraryProvider>();
+    final collection = context.read<BookCollectionProvider>();
+
+    if (isWishlist) {
+      return SizedBox(
+        width: 52,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: 'Move to Library',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.amber.shade700,
+                foregroundColor: Colors.black,
+                minimumSize: const Size(44, 44),
+              ),
+              onPressed: () async {
+                await library.moveToLibrary(book);
+
+                if (!context.mounted) return;
+
+                // Keep the search-page checkmark in sync.
+                await collection.addBook(
+                  book.copyWith(status: 'Want to Read'),
+                );
+
+                if (!context.mounted) return;
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Moved ${book.title} to Library'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.add),
+            ),
+            const SizedBox(height: 16),
+            IconButton(
+              tooltip: 'Remove from Wish List',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.red.shade900.withOpacity(0.35),
+                foregroundColor: Colors.red.shade200,
+                minimumSize: const Size(44, 44),
+              ),
+              onPressed: () async {
+                await library.removeFromWishlist(book);
+
+                if (!context.mounted) return;
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Removed ${book.title}'),
+                    backgroundColor: Colors.red.shade700,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.delete_outline),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SizedBox(
+      width: 52,
+      child: Center(
+          child: IconButton(
+            tooltip: 'Remove',
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.red.shade900.withOpacity(0.35),
+              foregroundColor: Colors.red.shade200,
+              minimumSize: const Size(44, 44),
+            ),
+          onPressed: () async {
+            await library.removeBook(book);
+
+            // Important:
+            // This makes the search card return from checkmark to plus.
+            await collection.removeBook(book);
+
+            if (!context.mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Removed ${book.title}'),
+                backgroundColor: Colors.red.shade700,
+              ),
+            );
+          },
+          icon: const Icon(Icons.delete_outline),
+        ),
+      )
     );
   }
 
@@ -363,6 +410,67 @@ class LibraryScreen extends StatelessWidget {
               library.updateBookStatus(book, newStatus);
             }
           },
+        ),
+      ),
+    );
+  }
+
+  // Builds one pill-shaped button that toggles between Physical and Digital.
+  Widget _buildOwnershipButton({
+    required BuildContext context,
+    required Book book,
+  }) {
+    final library = context.read<LibraryProvider>();
+    final bool isPhysical = book.ownershipType == 'Physical';
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: () async {
+        final newOwnershipType = isPhysical ? 'Digital' : 'Physical';
+
+        await library.updateBookOwnershipType(
+          book,
+          newOwnershipType,
+        );
+
+        if (!context.mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${book.title} marked as $newOwnershipType',
+            ),
+            backgroundColor: Colors.green.shade700,
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.green.shade500.withOpacity(0.14),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: Colors.green.shade500.withOpacity(0.45),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isPhysical ? Icons.menu_book : Icons.devices,
+              color: Colors.green.shade500,
+              size: 15,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              isPhysical ? 'Physical' : 'Digital',
+              style: TextStyle(
+                color: Colors.green.shade500,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
       ),
     );

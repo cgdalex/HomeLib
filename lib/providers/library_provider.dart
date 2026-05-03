@@ -46,6 +46,23 @@ class LibraryProvider extends ChangeNotifier {
     }
   }
 
+  // Updates whether the user owns the book physically or digitally.
+  Future<void> updateBookOwnershipType(
+    Book book,
+    String newOwnershipType,
+  ) async {
+    final index = _savedBooks.indexWhere((b) => b.id == book.id);
+
+    if (index != -1) {
+      _savedBooks[index] = _savedBooks[index].copyWith(
+        ownershipType: newOwnershipType,
+      );
+
+      notifyListeners();
+      await _saveToDisk();
+    }
+  }
+
   // Updates the user's personal rating and notes.
   // This checks both the main library and the wishlist because the user
   // may save notes for a book in either place.
@@ -125,7 +142,12 @@ class LibraryProvider extends ChangeNotifier {
     _wishlist.removeWhere((item) => item.id == book.id);
 
     if (!_savedBooks.any((b) => b.id == book.id)) {
-      _savedBooks.add(book.copyWith(status: 'Want to Read'));
+      _savedBooks.add(
+        book.copyWith(
+          status: 'Want to Read',
+          ownershipType: book.ownershipType,
+        ),
+      );
     }
 
     notifyListeners();
